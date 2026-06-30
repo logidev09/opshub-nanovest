@@ -1,5 +1,9 @@
+import { Prisma, type HrPolicy, type LeaveRequest, LeaveStatus, LeaveType } from "@prisma/client";
 import { prisma } from "@/features/shared/lib/db";
-import { LeaveStatus, LeaveType } from "@prisma/client";
+
+type SearchPolicyResult = Pick<HrPolicy, "id" | "title" | "content" | "category"> & {
+  metadata: Prisma.JsonValue;
+};
 
 export class HrRepository {
   /**
@@ -8,7 +12,7 @@ export class HrRepository {
   static async searchPolicies(queryVector: number[], limit = 3) {
     try {
       const vectorString = `[${queryVector.join(",")}]`;
-      const policies = await prisma.$queryRawUnsafe<any[]>(
+      const policies = await prisma.$queryRawUnsafe<SearchPolicyResult[]>(
         `SELECT id, title, content, category, metadata
          FROM "HrPolicy"
          ORDER BY embedding <=> $1::vector
@@ -34,7 +38,7 @@ export class HrRepository {
     content: string;
     category: string;
     embedding?: number[];
-    metadata?: any;
+    metadata?: Prisma.JsonValue;
   }) {
     if (data.embedding && data.embedding.length > 0) {
       const id = `policy-${Math.random().toString(36).substring(2, 11)}`;
@@ -118,6 +122,23 @@ export class HrRepository {
         status,
         approvedBy,
         approvedAt: status === LeaveStatus.APPROVED || status === LeaveStatus.REJECTED ? new Date() : null,
+      },
+    });
+  }
+
+  static async findOverlappingLeaveRequests(userId: string, startDate: Date, endDate: Date): Promise<LeaveRequest | null> {
+    return prisma.leaveRequest.findFirst({
+      where: {
+        userId,
+        status: {
+          in: [LeaveStatus.PENDING, LeaveStatus.APPROVED],
+        },
+        startDate: {
+          lte: endDate,
+        },
+        endDate: {
+          gte: startDate,
+        },
       },
     });
   }

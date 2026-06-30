@@ -2,23 +2,22 @@ import { createUIMessageStream } from "ai";
 
 async function main() {
   const stream = createUIMessageStream({
-    execute: async (ctx: any) => {
-      const w = ctx.writer;
+    execute: async ({ writer }) => {
       const msgId = "mock-msg-" + Date.now();
       
-      w.write({ type: "start", messageId: msgId });
-      w.write({ type: "text-start", id: msgId });
+      writer.write({ type: "start", messageId: msgId });
+      writer.write({ type: "text-start", id: msgId });
 
       const text = "Hello World! This is a mock streaming response from Nanovest HR Copilot.";
       const words = text.split(" ");
       for (const word of words) {
-        w.write({ type: "text-delta", id: msgId, delta: word + " " });
+        writer.write({ type: "text-delta", id: msgId, delta: word + " " });
         await new Promise((resolve) => setTimeout(resolve, 30));
       }
 
-      w.write({ type: "text-end", id: msgId });
-      w.write({ type: "finish-step" });
-      w.write({ type: "finish" });
+      writer.write({ type: "text-end", id: msgId });
+      writer.write({ type: "finish-step" });
+      writer.write({ type: "finish" });
     },
   });
 

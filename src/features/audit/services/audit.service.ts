@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/features/shared/lib/db";
 
 interface AuditLogPayload {
@@ -5,8 +6,8 @@ interface AuditLogPayload {
   action: string;
   entity: string;
   entityId: string;
-  oldValue?: any;
-  newValue?: any;
+  oldValue?: Prisma.JsonValue;
+  newValue?: Prisma.JsonValue;
   ipAddress?: string | null;
   userAgent?: string | null;
 }

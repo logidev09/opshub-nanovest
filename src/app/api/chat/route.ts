@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { checkGuardrails } from "@/features/hr/services/guardrails";
 import { HrService } from "@/features/hr/services/hr.service";
+import { extractLeaveIntent } from "@/features/hr/services/leave-intent";
 import { chatModel, hasGroqKey } from "@/features/hr/services/ai-provider";
 import {
   streamText,
@@ -11,6 +12,7 @@ import {
   convertToModelMessages,
 } from "ai";
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 
 interface ChatRequestPart {
   type?: string;
@@ -70,6 +72,36 @@ export async function POST(request: Request) {
         },
         { status: 400 }
       );
+    }
+
+    const sessionUser = session.user as { id: string; name?: string | null };
+    const autoLeaveIntent = extractLeaveIntent(userPrompt);
+    if (autoLeaveIntent) {
+      try {
+        await HrService.requestLeave(sessionUser.id, autoLeaveIntent);
+        revalidatePath("/dashboard");
+        revalidatePath("/dashboard/hr");
+
+        const confirmationText = [
+          `Siap, pengajuan cuti Anda sudah otomatis saya kirim ke HR.`,
+          `Jenis cuti: ${formatLeaveType(autoLeaveIntent.type)}.`,
+          `Periode: ${formatDisplayDate(autoLeaveIntent.startDate)} sampai ${formatDisplayDate(autoLeaveIntent.endDate)}.`,
+          autoLeaveIntent.reason ? `Alasan: ${autoLeaveIntent.reason}.` : "Alasan belum dicantumkan secara spesifik.",
+          "Silakan cek panel riwayat cuti di sebelah kanan untuk memastikan statusnya sudah masuk sebagai pending.",
+        ].join("\n");
+
+        return createStreamFromPlainText(confirmationText, "leave-" + Date.now());
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Pengajuan cuti belum bisa diproses otomatis saat ini.";
+
+        return createStreamFromPlainText(
+          `Saya mendeteksi Anda ingin mengajukan cuti, tetapi pengajuan otomatis gagal diproses.\n\nDetail: ${message}\n\nSilakan lengkapi lewat formulir cuti di panel kanan atau kirim ulang dengan format tanggal yang lebih jelas.`,
+          "leave-error-" + Date.now()
+        );
+      }
     }
 
     // 3. RAG context query
@@ -176,6 +208,50 @@ ${context}`;
       },
       { status: 500 }
     );
+  }
+}
+
+function createStreamFromPlainText(text: string, messageId: string) {
+  const stream = createUIMessageStream({
+    execute: async ({ writer }) => {
+      writer.write({ type: "start", messageId });
+      writer.write({ type: "start-step" });
+      writer.write({ type: "text-start", id: messageId });
+
+      for (const chunk of text.split(" ")) {
+        writer.write({ type: "text-delta", id: messageId, delta: chunk + " " });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+
+      writer.write({ type: "text-end", id: messageId });
+      writer.write({ type: "finish-step" });
+      writer.write({ type: "finish" });
+    },
+  });
+
+  return createUIMessageStreamResponse({ stream });
+}
+
+function formatDisplayDate(value: string) {
+  return new Date(value).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatLeaveType(type: string) {
+  switch (type) {
+    case "SICK":
+      return "Cuti Sakit";
+    case "MATERNITY":
+      return "Cuti Melahirkan";
+    case "PATERNITY":
+      return "Cuti Ayah";
+    case "UNPAID":
+      return "Cuti di Luar Tanggungan";
+    default:
+      return "Cuti Tahunan";
   }
 }
 

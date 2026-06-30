@@ -135,7 +135,7 @@ function LoginForm() {
             onClick={() => handleQuickLogin("user@nanovest.io")}
             className="rounded-lg bg-zinc-950 border border-zinc-800 py-2 px-1 text-[11px] font-medium text-emerald-400 hover:bg-zinc-900 transition"
           >
-            Ilham Rizkyansyah
+            Employee
           </button>
         </div>
         <p className="text-[10px] text-zinc-500 text-center mt-3">

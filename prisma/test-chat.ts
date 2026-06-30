@@ -18,8 +18,11 @@ async function testGroq() {
     });
 
     console.log("Response from Groq:", result.text);
-  } catch (e: any) {
-    console.error("Groq API Call Failed with error:", e.message || e);
+  } catch (error: unknown) {
+    console.error(
+      "Groq API Call Failed with error:",
+      error instanceof Error ? error.message : error
+    );
   }
 }
 

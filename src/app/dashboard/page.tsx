@@ -12,7 +12,7 @@ export default async function DashboardPage() {
   }
 
   // Fetch dynamic stats from database
-  const [policyCount, pendingLeavesCount, totalAuditLogs, recentLogs] = await Promise.all([
+  const [policyCount, pendingLeavesCount, totalAuditLogs, recentLogs, financeAccountCount, journalEntryCount, feedbackOpenCount] = await Promise.all([
     prisma.hrPolicy.count().catch(() => 0),
     prisma.leaveRequest.count({ where: { status: "PENDING" } }).catch(() => 0),
     prisma.auditLog.count().catch(() => 0),
@@ -31,6 +31,9 @@ export default async function DashboardPage() {
         },
       })
       .catch(() => []),
+    prisma.financeAccount.count().catch(() => 0),
+    prisma.journalEntry.count().catch(() => 0),
+    prisma.systemFeedback.count({ where: { status: { in: ["OPEN", "IN_REVIEW"] } } }).catch(() => 0),
   ]);
 
   const cards = [
@@ -48,43 +51,43 @@ export default async function DashboardPage() {
       locked: false,
     },
     {
-      name: "Finance Ledger (Teaser)",
-      desc: "Trial balance generation, double-entry bookkeeping, and reporting.",
-      status: "Roadmap / Preview Only",
-      statusColor: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-      cta: "Module Locked",
+      name: "Finance Ledger",
+      desc: "Chart of accounts PSAK-style, journal posting, and trial balance monitoring.",
+      status: "Production-ready",
+      statusColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+      cta: "Open Finance Ledger",
       ctaHref: "/dashboard/finance",
       stats: [
-        { label: "Ledger Accounts", value: 12 },
-        { label: "Last Closed Month", value: "May 2026" },
+        { label: "Ledger Accounts", value: financeAccountCount },
+        { label: "Journal Entries", value: journalEntryCount },
       ],
-      locked: true,
+      locked: false,
     },
     {
-      name: "QA Automated Testing (Teaser)",
-      desc: "Playwright browser test runners and API endpoint validation logs.",
-      status: "Roadmap / Preview Only",
-      statusColor: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-      cta: "Module Locked",
+      name: "QA Automated Lab",
+      desc: "Automated coverage plan, manual QA checklist, and user feedback intake.",
+      status: "Active Planning",
+      statusColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+      cta: "Open QA Lab",
       ctaHref: "/dashboard/qa",
       stats: [
-        { label: "Active Test Cases", value: 45 },
-        { label: "Success Rate", value: "98.7%" },
+        { label: "Open QA Feedback", value: feedbackOpenCount },
+        { label: "Critical Flows", value: 4 },
       ],
-      locked: true,
+      locked: false,
     },
     {
-      name: "SecOps Compliance (Teaser)",
-      desc: "Security headers checker, audit log search, and SLA tracking.",
-      status: "Roadmap / Preview Only",
-      statusColor: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-      cta: "Module Locked",
+      name: "SecOps Compliance",
+      desc: "Security checklist, connection-health review, and admin security feedback inbox.",
+      status: "Active Planning",
+      statusColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+      cta: "Open SecOps",
       ctaHref: "/dashboard/security",
       stats: [
         { label: "Security Incidents", value: 0 },
-        { label: "Llama-Guard Scans", value: 120 },
+        { label: "Open Findings", value: feedbackOpenCount },
       ],
-      locked: true,
+      locked: false,
     },
   ];
 

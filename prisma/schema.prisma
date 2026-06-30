@@ -16,6 +16,7 @@ model User {
   password      String?
   role          Role      @default(USER)
   image         String?
+  isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -23,6 +24,9 @@ model User {
   hrBotSessions HrBotSession[]
   leaveRequests LeaveRequest[]
   auditLogs     AuditLog[]
+  journalEntries JournalEntry[] @relation("PostedJournalEntries")
+  submittedFeedback SystemFeedback[] @relation("SubmittedFeedback")
+  assignedFeedback  SystemFeedback[] @relation("AssignedFeedback")
 }
 
 model HrBotSession {
@@ -81,6 +85,74 @@ model AuditLog {
   @@index([entity, entityId])
 }
 
+model FinanceAccount {
+  id            String          @id @default(cuid())
+  code          String          @unique
+  name          String
+  category      AccountCategory
+  normalBalance BalanceSide
+  isSystem      Boolean         @default(false)
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  journalLines JournalLine[]
+
+  @@index([category])
+}
+
+model JournalEntry {
+  id          String      @id @default(cuid())
+  reference   String      @unique
+  description String
+  entryDate   DateTime
+  totalDebit  Decimal     @db.Decimal(18, 2)
+  totalCredit Decimal     @db.Decimal(18, 2)
+  postedById  String?
+  createdAt   DateTime    @default(now())
+
+  postedBy User? @relation("PostedJournalEntries", fields: [postedById], references: [id])
+  lines    JournalLine[]
+
+  @@index([entryDate])
+}
+
+model JournalLine {
+  id               String      @id @default(cuid())
+  journalEntryId   String
+  financeAccountId String
+  side             BalanceSide
+  amount           Decimal     @db.Decimal(18, 2)
+  createdAt        DateTime    @default(now())
+
+  journalEntry  JournalEntry  @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  financeAccount FinanceAccount @relation(fields: [financeAccountId], references: [id])
+
+  @@index([journalEntryId])
+  @@index([financeAccountId])
+  @@index([side])
+}
+
+model SystemFeedback {
+  id             String           @id @default(cuid())
+  module         FeedbackModule
+  category       FeedbackCategory
+  message        String           @db.Text
+  status         FeedbackStatus   @default(OPEN)
+  submittedById  String
+  assignedToId   String?
+  resolutionNote String?          @db.Text
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  submittedBy User @relation("SubmittedFeedback", fields: [submittedById], references: [id])
+  assignedTo  User? @relation("AssignedFeedback", fields: [assignedToId], references: [id])
+
+  @@index([module])
+  @@index([status])
+  @@index([submittedById])
+}
+
 // ========== ENUMS ==========
 enum Role {
   ADMIN
@@ -102,4 +174,40 @@ enum LeaveStatus {
   APPROVED
   REJECTED
   CANCELLED
+}
+
+enum AccountCategory {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum BalanceSide {
+  DEBIT
+  CREDIT
+}
+
+enum FeedbackModule {
+  QA
+  SECOPS
+  HR
+  FINANCE
+  GENERAL
+}
+
+enum FeedbackCategory {
+  BUG
+  UI_UX
+  CONNECTION
+  SECURITY
+  TEST_CASE
+  FEATURE_REQUEST
+}
+
+enum FeedbackStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
 }

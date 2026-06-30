@@ -1,7 +1,19 @@
 import NextAuth, { AuthOptions } from "next-auth";
+import type { Session } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/features/shared/lib/db";
 import bcrypt from "bcrypt";
+
+type AppToken = JWT & {
+  id?: string;
+  role?: string;
+};
+
+type AppSessionUser = Session["user"] & {
+  id?: string;
+  role?: string;
+};
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -24,6 +36,10 @@ export const authOptions: AuthOptions = {
           throw new Error("Invalid email or password");
         }
 
+        if (!user.isActive) {
+          throw new Error("This account has been deactivated");
+        }
+
         const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
         if (!isPasswordValid) {
@@ -41,16 +57,19 @@ export const authOptions: AuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
+      const appToken = token as AppToken;
       if (user) {
-        token.id = user.id;
-        token.role = (user as any).role;
+        appToken.id = user.id;
+        appToken.role = "role" in user ? String(user.role) : undefined;
       }
-      return token;
+      return appToken;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id as string;
-        (session.user as any).role = token.role as string;
+        const appUser = session.user as AppSessionUser;
+        const appToken = token as AppToken;
+        appUser.id = appToken.id;
+        appUser.role = appToken.role;
       }
       return session;
     },

@@ -87,21 +87,26 @@ export class HrService {
     const end = new Date(data.endDate);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      throw new Error("Invalid start or end date format.");
+      throw new Error("Format tanggal mulai atau selesai tidak valid.");
     }
 
     if (start > end) {
-      throw new Error("Start date cannot be after end date.");
+      throw new Error("Tanggal mulai tidak boleh melewati tanggal selesai.");
     }
 
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const requestedDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
+    const overlappingRequest = await HrRepository.findOverlappingLeaveRequests(userId, start, end);
+    if (overlappingRequest) {
+      throw new Error("Sudah ada pengajuan cuti lain yang bertumpang tindih pada rentang tanggal tersebut.");
+    }
+
     // Check balance for annual leaves
     if (data.type === LeaveType.ANNUAL) {
       const currentBalance = await HrRepository.getLeaveBalance(userId);
       if (requestedDays > currentBalance) {
-        throw new Error(`Insufficient leave balance. You requested ${requestedDays} days, but only have ${currentBalance} days remaining.`);
+        throw new Error(`Sisa cuti tidak mencukupi. Anda meminta ${requestedDays} hari, sedangkan sisa cuti saat ini ${currentBalance} hari.`);
       }
     }
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { submitLeaveAction, reviewLeaveAction } from "@/features/hr/actions/leave.actions";
-import { createUserAction } from "@/features/hr/actions/user.actions";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import type { UIMessage } from "ai";
@@ -91,6 +91,10 @@ function renderMessageText(message: UIMessage) {
   return message.role === "assistant" ? "..." : null;
 }
 
+function getMessageLabel(role: UIMessage["role"]) {
+  return role === "user" ? "Employee" : "HR AI";
+}
+
 export function HrDashboardClient({
   userRole,
   initialBalance,
@@ -165,12 +169,8 @@ export function HrDashboardClient({
   const [reason, setReason] = useState("");
   const [formLoading, setFormLoading] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [newUserName, setNewUserName] = useState("");
-  const [newUserEmail, setNewUserEmail] = useState("");
-  const [newUserPassword, setNewUserPassword] = useState("");
-  const [newUserRole, setNewUserRole] = useState<"USER" | "HR" | "ADMIN">("USER");
-  const [userCreateLoading, setUserCreateLoading] = useState(false);
-  const [userCreateMessage, setUserCreateMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const startDateRef = useRef<HTMLInputElement>(null);
+  const endDateRef = useRef<HTMLInputElement>(null);
 
   // Review State
   const [reviewLoading, setReviewLoading] = useState<string | null>(null);
@@ -213,37 +213,14 @@ export function HrDashboardClient({
     }
   };
 
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUserCreateLoading(true);
-    setUserCreateMessage(null);
-
-    const res = await createUserAction({
-      name: newUserName,
-      email: newUserEmail,
-      password: newUserPassword,
-      role: newUserRole,
-    });
-
-    setUserCreateLoading(false);
-
-    if (res.success) {
-      setUserCreateMessage({
-        type: "success",
-        text: res.message || "User baru berhasil dibuat.",
-      });
-      setNewUserName("");
-      setNewUserEmail("");
-      setNewUserPassword("");
-      setNewUserRole("USER");
-      router.refresh();
+  const openDatePicker = (input: HTMLInputElement | null) => {
+    if (!input) return;
+    const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
+    if (pickerInput.showPicker) {
+      pickerInput.showPicker();
       return;
     }
-
-    setUserCreateMessage({
-      type: "error",
-      text: res.error || "Gagal membuat user baru.",
-    });
+    pickerInput.focus();
   };
 
   return (
@@ -277,19 +254,24 @@ export function HrDashboardClient({
             messages.map((m) => (
               <div
                 key={m.id}
-                className={`flex gap-3 text-sm max-w-[85%] ${
+                className={`flex gap-3 text-sm max-w-[88%] ${
                   m.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
                 }`}
               >
                 <ChatAvatar role={m.role} />
-                <div
-                  className={`rounded-2xl px-4 py-3 leading-relaxed whitespace-pre-wrap ${
-                    m.role === "user"
-                      ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
-                      : "bg-zinc-900/80 text-zinc-200 border border-zinc-850"
-                  }`}
-                >
-                  {renderMessageText(m)}
+                <div className={`space-y-1 ${m.role === "user" ? "items-end text-right" : ""}`}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${m.role === "user" ? "text-emerald-300" : "text-zinc-500"}`}>
+                    {getMessageLabel(m.role)}
+                  </p>
+                  <div
+                    className={`rounded-2xl px-4 py-3 leading-relaxed whitespace-pre-wrap ${
+                      m.role === "user"
+                        ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                        : "bg-zinc-900/80 text-zinc-200 border border-zinc-850"
+                    }`}
+                  >
+                    {renderMessageText(m)}
+                  </div>
                 </div>
               </div>
             ))
@@ -332,7 +314,7 @@ export function HrDashboardClient({
             <input
               value={input}
               onChange={handleInputChange}
-              placeholder="Tanyakan kebijakan... (mis. 'Berapa jatah cuti tahunan saya?')"
+              placeholder="Tanyakan kebijakan atau ajukan cuti... (mis. 'Saya ingin cuti besok karena kontrol gigi')"
               className="flex-1 rounded-xl border border-zinc-850 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-emerald-500/80 transition"
             />
             <button
@@ -353,88 +335,20 @@ export function HrDashboardClient({
         {/* Admin User Creation */}
         {userRole === "ADMIN" && (
           <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20">
-            <div className="mb-4">
-              <h3 className="text-base font-bold text-white">Buat User Baru</h3>
-              <p className="text-xs text-zinc-500 mt-1">
-                Admin dapat menambahkan akun baru untuk employee, HR, atau admin lainnya.
-              </p>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-base font-bold text-white">Kelola Akun Admin</h3>
+                <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                  Admin sekarang punya halaman khusus untuk membuat akun baru, mengubah role, reset kata sandi, dan mengaktifkan atau menonaktifkan akun.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/admin"
+                className="shrink-0 rounded-xl bg-zinc-100 px-4 py-2.5 text-xs font-semibold text-black transition hover:opacity-95"
+              >
+                Buka Admin
+              </Link>
             </div>
-
-            {userCreateMessage && (
-              <div
-                className={`mb-4 rounded-lg p-3 text-xs font-semibold border ${
-                  userCreateMessage.type === "success"
-                    ? "bg-emerald-950/40 text-emerald-400 border-emerald-500/20"
-                    : "bg-red-950/40 text-red-400 border-red-500/20"
-                }`}
-              >
-                {userCreateMessage.text}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateUser} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
-                  Nama Lengkap
-                </label>
-                <input
-                  value={newUserName}
-                  onChange={(e) => setNewUserName(e.target.value)}
-                  placeholder="Masukkan nama user"
-                  className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-300 outline-none placeholder-zinc-700 focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
-                  placeholder="nama@nanovest.io"
-                  className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-300 outline-none placeholder-zinc-700 focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
-                    Kata Sandi
-                  </label>
-                  <input
-                    type="password"
-                    value={newUserPassword}
-                    onChange={(e) => setNewUserPassword(e.target.value)}
-                    placeholder="Minimal 8 karakter"
-                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-300 outline-none placeholder-zinc-700 focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
-                    Peran
-                  </label>
-                  <select
-                    value={newUserRole}
-                    onChange={(e) => setNewUserRole(e.target.value as "USER" | "HR" | "ADMIN")}
-                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-300 outline-none focus:border-emerald-500"
-                  >
-                    <option value="USER">Employee</option>
-                    <option value="HR">HR</option>
-                    <option value="ADMIN">Admin</option>
-                  </select>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={userCreateLoading || !newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()}
-                className="w-full rounded-xl bg-zinc-100 py-3 text-xs font-semibold text-black hover:opacity-95 disabled:opacity-50 transition active:scale-[0.98]"
-              >
-                {userCreateLoading ? "Membuat user..." : "Buat User"}
-              </button>
-            </form>
           </div>
         )}
 
@@ -490,25 +404,45 @@ export function HrDashboardClient({
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
                   Tanggal Mulai
                 </label>
-                <input
-                  type="date"
-                  required
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500"
-                />
+                <div className="relative">
+                  <input
+                    ref={startDateRef}
+                    type="date"
+                    required
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => openDatePicker(startDateRef.current)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-zinc-300 transition hover:border-emerald-500/40 hover:text-emerald-300"
+                  >
+                    Kalender
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
                   Tanggal Selesai
                 </label>
-                <input
-                  type="date"
-                  required
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500"
-                />
+                <div className="relative">
+                  <input
+                    ref={endDateRef}
+                    type="date"
+                    required
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => openDatePicker(endDateRef.current)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-zinc-300 transition hover:border-emerald-500/40 hover:text-emerald-300"
+                  >
+                    Kalender
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -532,6 +466,9 @@ export function HrDashboardClient({
             >
               {formLoading ? "Mengirim..." : "Kirim Pengajuan Cuti"}
             </button>
+            <p className="text-[11px] leading-relaxed text-zinc-500">
+              Anda juga bisa mengetik di chat seperti <span className="text-zinc-300">&quot;Saya ingin cuti besok karena kontrol gigi&quot;</span> dan sistem akan otomatis membuat pengajuan jika tanggalnya terbaca.
+            </p>
           </form>
         </div>
 
