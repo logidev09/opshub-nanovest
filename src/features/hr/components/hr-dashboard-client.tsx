@@ -201,10 +201,15 @@ export function HrDashboardClient({
               <div className="h-7 w-7 rounded-full bg-zinc-850 border border-zinc-700 flex items-center justify-center text-zinc-500 text-xs">
                 AI
               </div>
-              <div className="flex gap-1.5 p-3 rounded-2xl bg-zinc-900/40 border border-zinc-900">
-                <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce" />
-                <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.2s]" />
-                <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.4s]" />
+              <div className="flex gap-2 items-center">
+                <div className="flex gap-1.5 p-3 rounded-2xl bg-zinc-900/40 border border-zinc-900">
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.2s]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.4s]" />
+                </div>
+                <span className="text-[10px] text-zinc-500 font-mono animate-pulse">
+                  HR Copilot is thinking...
+                </span>
               </div>
             </div>
           )}
