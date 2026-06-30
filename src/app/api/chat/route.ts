@@ -6,7 +6,6 @@ import { chatModel, hasGroqKey } from "@/features/hr/services/ai-provider";
 import {
   streamText,
   createUIMessageStreamResponse,
-  toUIMessageStream,
   createUIMessageStream,
   UIMessage,
   convertToModelMessages,
@@ -76,6 +75,8 @@ export async function POST(request: Request) {
     // 3. RAG context query
     const { context, matchedCount } = await HrService.getRagContext(userPrompt);
 
+    const mockText = getMockResponseText(userPrompt, matchedCount);
+
     // 4. Stream response using AI SDK v7 UIMessageStream protocol
     if (hasGroqKey) {
       const systemInstruction = `You are OpsHub HR Copilot, a professional and helpful human resources assistant for Nanovest.
@@ -86,26 +87,54 @@ Keep your answers clear, concise, and helpful. Always refer to policies professi
 RETRIEVED POLICY CONTEXT (Matched: ${matchedCount} documents):
 ${context}`;
 
-      const result = streamText({
-        model: chatModel,
-        messages: [
-          { role: "system", content: systemInstruction },
-          ...(await convertToModelMessages(messages as UIMessage[])),
-        ],
-        onError: ({ error }) => {
-          console.error("[ChatAPI] StreamText error:", error);
-        },
-      });
-
       return createUIMessageStreamResponse({
-        stream: toUIMessageStream({
-          stream: result.stream,
-          onError: () => "The HR Copilot hit a temporary issue while generating a response. Please try again.",
+        stream: createUIMessageStream({
+          execute: async ({ writer }) => {
+            const msgId = "assistant-" + Date.now();
+            let wroteModelText = false;
+
+            writer.write({ type: "start", messageId: msgId });
+            writer.write({ type: "text-start", id: msgId });
+
+            try {
+              const result = streamText({
+                model: chatModel,
+                messages: [
+                  { role: "system", content: systemInstruction },
+                  ...(await convertToModelMessages(messages as UIMessage[])),
+                ],
+              });
+
+              for await (const delta of result.textStream) {
+                if (!delta) continue;
+                wroteModelText = true;
+                writer.write({ type: "text-delta", id: msgId, delta });
+              }
+            } catch (error) {
+              console.error("[ChatAPI] StreamText error, falling back to mock response:", error);
+
+              if (!wroteModelText) {
+                for (const word of mockText.split(" ")) {
+                  writer.write({ type: "text-delta", id: msgId, delta: word + " " });
+                  await new Promise((resolve) => setTimeout(resolve, 30));
+                }
+              } else {
+                writer.write({
+                  type: "text-delta",
+                  id: msgId,
+                  delta: "\n\nI hit a temporary issue while finishing this response. Please try again if you need more detail.",
+                });
+              }
+            }
+
+            writer.write({ type: "text-end", id: msgId });
+            writer.write({ type: "finish-step" });
+            writer.write({ type: "finish" });
+          },
         }),
       });
     } else {
       // API Key missing - fallback to mock UIMessageStream
-      const mockText = getMockResponseText(userPrompt, matchedCount);
       const msgId = "mock-" + Date.now();
 
       const stream = createUIMessageStream({
