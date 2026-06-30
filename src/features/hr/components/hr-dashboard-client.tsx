@@ -171,12 +171,12 @@ export function HrDashboardClient({
                       : "bg-zinc-900/80 text-zinc-200 border border-zinc-850"
                   }`}
                 >
-                  {m.parts.map((part: any, index: number) => {
+                  {m.content || (m.parts && m.parts.map((part: any, index: number) => {
                     if (part.type === "text") {
                       return <span key={index}>{part.text}</span>;
                     }
                     return null;
-                  })}
+                  }))}
                 </div>
               </div>
             ))
