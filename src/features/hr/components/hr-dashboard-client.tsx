@@ -5,24 +5,58 @@ import { useChat } from "@ai-sdk/react";
 import { submitLeaveAction, reviewLeaveAction } from "@/features/hr/actions/leave.actions";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 import { useRouter } from "next/navigation";
+import type { UIMessage } from "ai";
 
 interface HrDashboardClientProps {
   userId: string;
   userRole: string;
   initialBalance: number;
-  initialMyLeaves: any[];
-  initialPendingLeaves: any[];
+  initialMyLeaves: LeaveHistoryItem[];
+  initialPendingLeaves: PendingLeaveItem[];
+}
+
+interface ChatAlert {
+  title: string;
+  message: string;
+}
+
+interface LeaveHistoryItem {
+  id: string;
+  type: LeaveType;
+  status: LeaveStatus;
+  startDate: Date | string;
+  endDate: Date | string;
+}
+
+interface PendingLeaveItem {
+  id: string;
+  type: LeaveType;
+  startDate: Date | string;
+  endDate: Date | string;
+  reason: string | null;
+  user: {
+    name: string | null;
+  };
+}
+
+function renderMessageText(message: UIMessage) {
+  return message.parts?.map((part, index) => {
+    if (part.type === "text") {
+      return <span key={index}>{part.text}</span>;
+    }
+
+    return null;
+  });
 }
 
 export function HrDashboardClient({
-  userId,
   userRole,
   initialBalance,
   initialMyLeaves,
   initialPendingLeaves,
 }: HrDashboardClientProps) {
   const router = useRouter();
-  const [securityError, setSecurityError] = useState<string | null>(null);
+  const [chatAlert, setChatAlert] = useState<ChatAlert | null>(null);
 
   const [input, setInput] = useState("");
 
@@ -30,7 +64,6 @@ export function HrDashboardClient({
   const {
     messages,
     sendMessage,
-    setMessages,
     status,
   } = useChat({
     messages: [
@@ -44,16 +77,28 @@ export function HrDashboardClient({
           },
         ],
       },
-    ] as any[],
+    ] as UIMessage[],
     onError: (err) => {
-      // Try to parse custom JSON error (like guardrails alerts)
       try {
         const parsed = JSON.parse(err.message);
-        setSecurityError(parsed.error || "A security or network error occurred.");
-      } catch (e) {
-        // Fallback to text message if not JSON
-        setSecurityError(err.message || "Guardrail alert: Your message could not be processed.");
+        if (parsed?.layer) {
+          setChatAlert({
+            title: parsed.layer === "ALLOWLIST" ? "Question Out of Scope" : "Guardrail Blocked Request",
+            message: parsed.error || "Your message could not be processed.",
+          });
+          return;
+        }
+      } catch {
+        // Fall through to generic service error copy.
       }
+
+      setChatAlert({
+        title: "HR Copilot Unavailable",
+        message:
+          err.message === "An error occurred."
+            ? "The HR Copilot hit a temporary issue while generating a response. Please try again."
+            : err.message || "The HR Copilot could not process your message right now.",
+      });
     },
   });
 
@@ -66,7 +111,7 @@ export function HrDashboardClient({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    setSecurityError(null);
+    setChatAlert(null);
     sendMessage({ text: input });
     setInput("");
   };
@@ -171,32 +216,27 @@ export function HrDashboardClient({
                       : "bg-zinc-900/80 text-zinc-200 border border-zinc-850"
                   }`}
                 >
-                  {m.content || (m.parts && m.parts.map((part: any, index: number) => {
-                    if (part.type === "text") {
-                      return <span key={index}>{part.text}</span>;
-                    }
-                    return null;
-                  }))}
+                  {renderMessageText(m)}
                 </div>
               </div>
             ))
           )}
 
           {/* Guardrail Errors alert */}
-          {securityError && (
+          {chatAlert && (
             <div className="flex gap-3 max-w-[90%] mr-auto items-start">
               <div className="h-7 w-7 rounded-full bg-red-950 border border-red-500/30 flex items-center justify-center text-red-500 font-bold text-xs">
                 🛡️
               </div>
               <div className="rounded-2xl px-4 py-3 bg-red-950/30 text-red-400 border border-red-900/50 leading-relaxed text-xs">
-                <span className="font-bold block mb-1">Guardrail Blocked Request</span>
-                {securityError}
+                <span className="font-bold block mb-1">{chatAlert.title}</span>
+                {chatAlert.message}
               </div>
             </div>
           )}
 
           {/* Loading indicators */}
-          {isChatLoading && !securityError && (
+          {isChatLoading && !chatAlert && (
             <div className="flex gap-3 mr-auto items-center">
               <div className="h-7 w-7 rounded-full bg-zinc-850 border border-zinc-700 flex items-center justify-center text-zinc-500 text-xs">
                 AI
@@ -352,7 +392,7 @@ export function HrDashboardClient({
                   <p className="text-zinc-400 mb-2">
                     Dates: {new Date(request.startDate).toLocaleDateString()} to {new Date(request.endDate).toLocaleDateString()}
                   </p>
-                  {request.reason && <p className="text-zinc-500 italic mb-3">"{request.reason}"</p>}
+                  {request.reason && <p className="text-zinc-500 italic mb-3">&quot;{request.reason}&quot;</p>}
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleLeaveReview(request.id, LeaveStatus.APPROVED)}

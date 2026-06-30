@@ -13,6 +13,17 @@ import {
 } from "ai";
 import { NextResponse } from "next/server";
 
+interface ChatRequestPart {
+  type?: string;
+  text?: string;
+}
+
+interface ChatRequestMessage {
+  parts?: ChatRequestPart[];
+  content?: string;
+  text?: string;
+}
+
 export async function POST(request: Request) {
   // 1. Session verification
   const session = await getServerSession(authOptions);
@@ -26,17 +37,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing chat messages" }, { status: 400 });
     }
 
-    const lastMessage = messages[messages.length - 1];
-    console.log("[ChatAPI] Raw lastMessage keys:", Object.keys(lastMessage));
-    console.log("[ChatAPI] Raw lastMessage:", JSON.stringify(lastMessage).substring(0, 500));
-
+    const lastMessage = messages[messages.length - 1] as ChatRequestMessage;
     // Extract user prompt - handle all AI SDK message formats
     let userPrompt = "";
     // v7 format: parts array with {type: "text", text: "..."}
     if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
       userPrompt = lastMessage.parts
-        .filter((part: any) => part.type === "text")
-        .map((part: any) => part.text || "")
+        .filter((part) => part.type === "text")
+        .map((part) => part.text || "")
         .join("");
     }
     // v4 format: content as string
@@ -47,13 +55,20 @@ export async function POST(request: Request) {
     if (!userPrompt && typeof lastMessage.text === "string") {
       userPrompt = lastMessage.text;
     }
-    console.log("[ChatAPI] Extracted userPrompt:", userPrompt);
+    userPrompt = userPrompt.trim();
+    if (!userPrompt) {
+      return NextResponse.json({ error: "Missing user prompt" }, { status: 400 });
+    }
 
     // 2. Guardrails validation
     const guardrailResult = await checkGuardrails(userPrompt);
     if (!guardrailResult.passed) {
       return NextResponse.json(
-        { error: guardrailResult.reason, layer: guardrailResult.layer },
+        {
+          error: guardrailResult.reason,
+          layer: guardrailResult.layer,
+          category: guardrailResult.category,
+        },
         { status: 400 }
       );
     }
@@ -77,10 +92,16 @@ ${context}`;
           { role: "system", content: systemInstruction },
           ...(await convertToModelMessages(messages as UIMessage[])),
         ],
+        onError: ({ error }) => {
+          console.error("[ChatAPI] StreamText error:", error);
+        },
       });
 
       return createUIMessageStreamResponse({
-        stream: toUIMessageStream({ stream: result.stream }),
+        stream: toUIMessageStream({
+          stream: result.stream,
+          onError: () => "The HR Copilot hit a temporary issue while generating a response. Please try again.",
+        }),
       });
     } else {
       // API Key missing - fallback to mock UIMessageStream
@@ -107,9 +128,14 @@ ${context}`;
 
       return createUIMessageStreamResponse({ stream });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[ChatAPI] Error during chat processing:", error);
-    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "The HR Copilot hit an unexpected server error. Please try again.",
+      },
+      { status: 500 }
+    );
   }
 }
 
