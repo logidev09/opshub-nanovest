@@ -40,13 +40,19 @@ interface PendingLeaveItem {
 }
 
 function renderMessageText(message: UIMessage) {
-  return message.parts?.map((part, index) => {
-    if (part.type === "text") {
+  const renderedParts = message.parts?.map((part, index) => {
+    if (part.type === "text" || part.type === "reasoning") {
       return <span key={index}>{part.text}</span>;
     }
 
     return null;
-  });
+  }).filter(Boolean);
+
+  if (renderedParts && renderedParts.length > 0) {
+    return renderedParts;
+  }
+
+  return message.role === "assistant" ? "..." : null;
 }
 
 export function HrDashboardClient({

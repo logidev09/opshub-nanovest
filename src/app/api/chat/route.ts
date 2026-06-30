@@ -92,8 +92,15 @@ ${context}`;
           execute: async ({ writer }) => {
             const msgId = "assistant-" + Date.now();
             let wroteModelText = false;
+            const streamMockFallback = async () => {
+              for (const word of mockText.split(" ")) {
+                writer.write({ type: "text-delta", id: msgId, delta: word + " " });
+                await new Promise((resolve) => setTimeout(resolve, 30));
+              }
+            };
 
             writer.write({ type: "start", messageId: msgId });
+            writer.write({ type: "start-step" });
             writer.write({ type: "text-start", id: msgId });
 
             try {
@@ -114,10 +121,7 @@ ${context}`;
               console.error("[ChatAPI] StreamText error, falling back to mock response:", error);
 
               if (!wroteModelText) {
-                for (const word of mockText.split(" ")) {
-                  writer.write({ type: "text-delta", id: msgId, delta: word + " " });
-                  await new Promise((resolve) => setTimeout(resolve, 30));
-                }
+                await streamMockFallback();
               } else {
                 writer.write({
                   type: "text-delta",
@@ -125,6 +129,11 @@ ${context}`;
                   delta: "\n\nI hit a temporary issue while finishing this response. Please try again if you need more detail.",
                 });
               }
+            }
+
+            // Some provider failures complete the stream without throwing and without text.
+            if (!wroteModelText) {
+              await streamMockFallback();
             }
 
             writer.write({ type: "text-end", id: msgId });
@@ -140,6 +149,7 @@ ${context}`;
       const stream = createUIMessageStream({
         execute: async ({ writer }) => {
           writer.write({ type: "start", messageId: msgId });
+          writer.write({ type: "start-step" });
           writer.write({ type: "text-start", id: msgId });
 
           // Simulate word-by-word streaming
