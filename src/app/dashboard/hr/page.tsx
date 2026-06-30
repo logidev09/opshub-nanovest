@@ -4,6 +4,11 @@ import { HrRepository } from "@/features/hr/repositories/hr.repository";
 import { HrDashboardClient } from "@/features/hr/components/hr-dashboard-client";
 import { redirect } from "next/navigation";
 
+type SessionUser = {
+  id: string;
+  role?: string;
+};
+
 export default async function HrDashboardPage() {
   const session = await getServerSession(authOptions);
 
@@ -11,8 +16,9 @@ export default async function HrDashboardPage() {
     redirect("/");
   }
 
-  const userId = (session.user as any).id;
-  const userRole = (session.user as any).role || "USER";
+  const sessionUser = session.user as SessionUser;
+  const userId = sessionUser.id;
+  const userRole = sessionUser.role || "USER";
 
   const [balance, myLeaves, pendingLeaves] = await Promise.all([
     HrRepository.getLeaveBalance(userId),
@@ -59,7 +65,7 @@ export default async function HrDashboardPage() {
       <div className="border-b border-zinc-900 pb-6">
         <h1 className="text-3xl font-extrabold text-white tracking-tight">HR AI Copilot</h1>
         <p className="text-sm text-zinc-400 mt-1">
-          Ask policies to the HR Copilot or manage your leaves.
+          Tanyakan kebijakan ke HR Copilot atau kelola pengajuan cuti Anda.
         </p>
       </div>
 
