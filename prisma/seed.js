@@ -116,6 +116,31 @@ async function main() {
     }
   }
 
+  // 5. Seed leave requests for John Doe (Employee)
+  await prisma.leaveRequest.create({
+    data: {
+      userId: user.id,
+      type: "ANNUAL",
+      startDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      endDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),  // 3 days ago
+      reason: "Family vacation in Bali",
+      status: "APPROVED",
+      approvedBy: hr.id,
+      approvedAt: new Date(),
+    },
+  });
+
+  await prisma.leaveRequest.create({
+    data: {
+      userId: user.id,
+      type: "SICK",
+      startDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+      endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),  // 3 days from now
+      reason: "Dental checkup and wisdom tooth extraction",
+      status: "PENDING",
+    },
+  });
+
   console.log("Database seeding completed successfully.");
 }
 

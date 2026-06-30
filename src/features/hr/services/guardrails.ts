@@ -26,6 +26,7 @@ const ALLOWED_KEYWORDS = [
   "hi", "hello", "halo", "selamat", "pagi", "siang", "sore", "malam", "siapa", "bantuan", "help",
   "ops", "operations", "kantor", "office", "work", "kerja",
   "nanovest", "opshub", "bot", "assistant",
+  "tes", "test", "tanya", "cara", "bagaimana", "apa", "apakah", "adakah", "bolehkah", "bisa", "info"
 ];
 
 export async function checkGuardrails(prompt: string): Promise<GuardrailResult> {

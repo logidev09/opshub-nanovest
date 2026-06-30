@@ -51,7 +51,8 @@ How can I assist you today?`;
       // Split by words to simulate typing speed
       const words = responseText.split(" ");
       for (const word of words) {
-        controller.enqueue(encoder.encode(word + " "));
+        const chunk = word + " ";
+        controller.enqueue(encoder.encode(chunk));
         // Sleep for 30-50ms
         await new Promise((resolve) => setTimeout(resolve, 40));
       }
