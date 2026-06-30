@@ -38,7 +38,7 @@ async function main() {
   const user = await prisma.user.create({
     data: {
       email: "user@nanovest.io",
-      name: "John Doe (Employee)",
+      name: "Ilham Rizkyansyah (Employee)",
       password: hashedPassword,
       role: "USER",
     },
@@ -116,7 +116,7 @@ async function main() {
     }
   }
 
-  // 5. Seed leave requests for John Doe (Employee)
+  // 5. Seed leave requests for Ilham Rizkyansyah (Employee)
   await prisma.leaveRequest.create({
     data: {
       userId: user.id,

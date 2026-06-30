@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { submitLeaveAction, reviewLeaveAction } from "@/features/hr/actions/leave.actions";
+import { createUserAction } from "@/features/hr/actions/user.actions";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import type { UIMessage } from "ai";
@@ -37,6 +38,41 @@ interface PendingLeaveItem {
   user: {
     name: string | null;
   };
+}
+
+function ChatAvatar({ role }: { role: UIMessage["role"] }) {
+  const isUser = role === "user";
+
+  return (
+    <div
+      className={`flex h-10 w-10 min-h-10 min-w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border shadow-sm ${
+        isUser
+          ? "border-emerald-400/30 bg-emerald-500 text-black"
+          : "border-emerald-500/20 bg-zinc-900 text-emerald-300"
+      }`}
+      aria-hidden="true"
+    >
+      {isUser ? (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19a3 3 0 00-6 0m6 0a3 3 0 013 3H6a3 3 0 013-3m6 0v-1a3 3 0 10-6 0v1m6-9a3 3 0 11-6 0 3 3 0 016 0z"
+          />
+        </svg>
+      ) : (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9.75 3.75h4.5A2.25 2.25 0 0116.5 6v1.098a3.75 3.75 0 011.84 1.214l.777.971a3.75 3.75 0 01.821 2.34V15a2.25 2.25 0 01-2.25 2.25h-.188l.602 2.108a.75.75 0 01-1.165.826L14.25 18H9.75l-2.686 2.184a.75.75 0 01-1.165-.826l.602-2.108h-.188A2.25 2.25 0 014.5 15v-3.377a3.75 3.75 0 01.821-2.34l.777-.971a3.75 3.75 0 011.84-1.214V6a2.25 2.25 0 012.25-2.25zM9 10.5h.008v.008H9V10.5zm3 0h.008v.008H12V10.5zm3 0h.008v.008H15V10.5z"
+          />
+        </svg>
+      )}
+    </div>
+  );
 }
 
 function renderMessageText(message: UIMessage) {
@@ -79,7 +115,7 @@ export function HrDashboardClient({
         parts: [
           {
             type: "text",
-            text: "Hello! I am your Nanovest HR Copilot. I have access to company policy context and can assist you with vacation queries, salary payouts, or submit leave requests. How can I help you today?",
+            text: "Halo, saya HR Copilot Nanovest. Saya dapat membantu menjawab pertanyaan seputar kebijakan perusahaan, cuti, payroll, dan pengajuan izin. Ada yang ingin Anda tanyakan?",
           },
         ],
       },
@@ -89,8 +125,8 @@ export function HrDashboardClient({
         const parsed = JSON.parse(err.message);
         if (parsed?.layer) {
           setChatAlert({
-            title: parsed.layer === "ALLOWLIST" ? "Question Out of Scope" : "Guardrail Blocked Request",
-            message: parsed.error || "Your message could not be processed.",
+            title: parsed.layer === "ALLOWLIST" ? "Pertanyaan Di Luar Cakupan" : "Permintaan Diblokir Guardrail",
+            message: parsed.error || "Pesan Anda tidak dapat diproses.",
           });
           return;
         }
@@ -99,11 +135,11 @@ export function HrDashboardClient({
       }
 
       setChatAlert({
-        title: "HR Copilot Unavailable",
+        title: "HR Copilot Tidak Tersedia",
         message:
           err.message === "An error occurred."
-            ? "The HR Copilot hit a temporary issue while generating a response. Please try again."
-            : err.message || "The HR Copilot could not process your message right now.",
+            ? "HR Copilot sedang mengalami kendala sementara saat menyiapkan respons. Silakan coba lagi."
+            : err.message || "HR Copilot belum dapat memproses pesan Anda saat ini.",
       });
     },
   });
@@ -129,6 +165,12 @@ export function HrDashboardClient({
   const [reason, setReason] = useState("");
   const [formLoading, setFormLoading] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserRole, setNewUserRole] = useState<"USER" | "HR" | "ADMIN">("USER");
+  const [userCreateLoading, setUserCreateLoading] = useState(false);
+  const [userCreateMessage, setUserCreateMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Review State
   const [reviewLoading, setReviewLoading] = useState<string | null>(null);
@@ -148,13 +190,13 @@ export function HrDashboardClient({
 
     setFormLoading(false);
     if (res.success) {
-      setFormMessage({ type: "success", text: "Leave request submitted successfully!" });
+      setFormMessage({ type: "success", text: "Pengajuan cuti berhasil dikirim." });
       setStartDate("");
       setEndDate("");
       setReason("");
       router.refresh(); // Triggers Server Component to fetch new DB lists
     } else {
-      setFormMessage({ type: "error", text: res.error || "Failed to submit leave request." });
+      setFormMessage({ type: "error", text: res.error || "Gagal mengirim pengajuan cuti." });
     }
   };
 
@@ -167,8 +209,41 @@ export function HrDashboardClient({
     if (res.success) {
       router.refresh();
     } else {
-      alert(res.error || "Failed to submit review.");
+      alert(res.error || "Gagal memproses persetujuan.");
     }
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUserCreateLoading(true);
+    setUserCreateMessage(null);
+
+    const res = await createUserAction({
+      name: newUserName,
+      email: newUserEmail,
+      password: newUserPassword,
+      role: newUserRole,
+    });
+
+    setUserCreateLoading(false);
+
+    if (res.success) {
+      setUserCreateMessage({
+        type: "success",
+        text: res.message || "User baru berhasil dibuat.",
+      });
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setNewUserRole("USER");
+      router.refresh();
+      return;
+    }
+
+    setUserCreateMessage({
+      type: "error",
+      text: res.error || "Gagal membuat user baru.",
+    });
   };
 
   return (
@@ -180,7 +255,7 @@ export function HrDashboardClient({
           <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
           <div>
             <h2 className="text-sm font-bold text-white tracking-wide">Nanovest HR Copilot</h2>
-            <p className="text-[10px] text-zinc-500 font-medium">Equipped with Vector Policy Context & 3-Lapis Guardrails</p>
+            <p className="text-[10px] text-zinc-500 font-medium">Ditenagai konteks kebijakan vektor dan guardrail berlapis</p>
           </div>
         </div>
 
@@ -193,9 +268,9 @@ export function HrDashboardClient({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
               </div>
-              <h3 className="text-sm font-semibold text-white">Ask HR Copilot</h3>
+              <h3 className="text-sm font-semibold text-white">Tanya HR Copilot</h3>
               <p className="text-xs text-zinc-500 mt-1 max-w-sm">
-                Ask about vacation eligibility, work hours, or salary payslips. Our guardrails prevent prompt injection automatically.
+                Tanyakan soal jatah cuti, jam kerja, slip gaji, atau kebijakan HR lainnya. Guardrail kami melindungi percakapan dari prompt injection secara otomatis.
               </p>
             </div>
           ) : (
@@ -206,15 +281,7 @@ export function HrDashboardClient({
                   m.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
                 }`}
               >
-                <div
-                  className={`h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs border ${
-                    m.role === "user"
-                      ? "bg-emerald-500 text-black border-emerald-400"
-                      : "bg-zinc-850 text-white border-zinc-700"
-                  }`}
-                >
-                  {m.role === "user" ? "U" : "AI"}
-                </div>
+                <ChatAvatar role={m.role} />
                 <div
                   className={`rounded-2xl px-4 py-3 leading-relaxed whitespace-pre-wrap ${
                     m.role === "user"
@@ -231,7 +298,7 @@ export function HrDashboardClient({
           {/* Guardrail Errors alert */}
           {chatAlert && (
             <div className="flex gap-3 max-w-[90%] mr-auto items-start">
-              <div className="h-7 w-7 rounded-full bg-red-950 border border-red-500/30 flex items-center justify-center text-red-500 font-bold text-xs">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-500/30 bg-red-950 text-red-500 font-bold text-xs">
                 🛡️
               </div>
               <div className="rounded-2xl px-4 py-3 bg-red-950/30 text-red-400 border border-red-900/50 leading-relaxed text-xs">
@@ -244,9 +311,7 @@ export function HrDashboardClient({
           {/* Loading indicators */}
           {isChatLoading && !chatAlert && (
             <div className="flex gap-3 mr-auto items-center">
-              <div className="h-7 w-7 rounded-full bg-zinc-850 border border-zinc-700 flex items-center justify-center text-zinc-500 text-xs">
-                AI
-              </div>
+              <ChatAvatar role="assistant" />
               <div className="flex gap-2 items-center">
                 <div className="flex gap-1.5 p-3 rounded-2xl bg-zinc-900/40 border border-zinc-900">
                   <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce" />
@@ -254,7 +319,7 @@ export function HrDashboardClient({
                   <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.4s]" />
                 </div>
                 <span className="text-[10px] text-zinc-500 font-mono animate-pulse">
-                  HR Copilot is thinking...
+                  HR Copilot sedang menyiapkan jawaban...
                 </span>
               </div>
             </div>
@@ -267,7 +332,7 @@ export function HrDashboardClient({
             <input
               value={input}
               onChange={handleInputChange}
-              placeholder="Ask policies... (e.g. 'How many annual leave days do I get?')"
+              placeholder="Tanyakan kebijakan... (mis. 'Berapa jatah cuti tahunan saya?')"
               className="flex-1 rounded-xl border border-zinc-850 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-emerald-500/80 transition"
             />
             <button
@@ -285,12 +350,100 @@ export function HrDashboardClient({
 
       {/* RIGHT COLUMN: Leave Request Form & Leaves list (5 Cols on LG) */}
       <div className="lg:col-span-5 space-y-6">
+        {/* Admin User Creation */}
+        {userRole === "ADMIN" && (
+          <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20">
+            <div className="mb-4">
+              <h3 className="text-base font-bold text-white">Buat User Baru</h3>
+              <p className="text-xs text-zinc-500 mt-1">
+                Admin dapat menambahkan akun baru untuk employee, HR, atau admin lainnya.
+              </p>
+            </div>
+
+            {userCreateMessage && (
+              <div
+                className={`mb-4 rounded-lg p-3 text-xs font-semibold border ${
+                  userCreateMessage.type === "success"
+                    ? "bg-emerald-950/40 text-emerald-400 border-emerald-500/20"
+                    : "bg-red-950/40 text-red-400 border-red-500/20"
+                }`}
+              >
+                {userCreateMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
+                  Nama Lengkap
+                </label>
+                <input
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                  placeholder="Masukkan nama user"
+                  className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-300 outline-none placeholder-zinc-700 focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  placeholder="nama@nanovest.io"
+                  className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-300 outline-none placeholder-zinc-700 focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
+                    Kata Sandi
+                  </label>
+                  <input
+                    type="password"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    placeholder="Minimal 8 karakter"
+                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-300 outline-none placeholder-zinc-700 focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
+                    Peran
+                  </label>
+                  <select
+                    value={newUserRole}
+                    onChange={(e) => setNewUserRole(e.target.value as "USER" | "HR" | "ADMIN")}
+                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-300 outline-none focus:border-emerald-500"
+                  >
+                    <option value="USER">Employee</option>
+                    <option value="HR">HR</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={userCreateLoading || !newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()}
+                className="w-full rounded-xl bg-zinc-100 py-3 text-xs font-semibold text-black hover:opacity-95 disabled:opacity-50 transition active:scale-[0.98]"
+              >
+                {userCreateLoading ? "Membuat user..." : "Buat User"}
+              </button>
+            </form>
+          </div>
+        )}
+
         {/* Leave Balance Header Card */}
         <div className="p-6 rounded-2xl border border-zinc-900 bg-gradient-to-br from-zinc-900/60 to-zinc-950/60 shadow-xl flex items-center justify-between">
           <div>
-            <h3 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Leave Balance</h3>
+            <h3 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Sisa Cuti</h3>
             <p className="text-3xl font-extrabold text-white mt-1">
-              {initialBalance} <span className="text-zinc-500 text-sm font-medium">/ 12 Days</span>
+              {initialBalance} <span className="text-zinc-500 text-sm font-medium">/ 12 Hari</span>
             </p>
           </div>
           <span className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg font-bold">
@@ -300,7 +453,7 @@ export function HrDashboardClient({
 
         {/* Leave Request Form */}
         <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20">
-          <h3 className="text-base font-bold text-white mb-4">Request Leave</h3>
+          <h3 className="text-base font-bold text-white mb-4">Ajukan Cuti</h3>
 
           {formMessage && (
             <div
@@ -317,25 +470,25 @@ export function HrDashboardClient({
           <form onSubmit={handleLeaveSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
-                Leave Type
+                Jenis Cuti
               </label>
               <select
                 value={leaveType}
                 onChange={(e) => setLeaveType(e.target.value as LeaveType)}
                 className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-300 outline-none focus:border-emerald-500"
               >
-                <option value={LeaveType.ANNUAL}>Annual Leave (Cuti Tahunan)</option>
-                <option value={LeaveType.SICK}>Sick Leave (Cuti Sakit)</option>
-                <option value={LeaveType.MATERNITY}>Maternity Leave (3 Months)</option>
-                <option value={LeaveType.PATERNITY}>Paternity Leave (5 Days)</option>
-                <option value={LeaveType.UNPAID}>Unpaid Leave (Cuti Diluar Tanggungan)</option>
+                <option value={LeaveType.ANNUAL}>Cuti Tahunan</option>
+                <option value={LeaveType.SICK}>Cuti Sakit</option>
+                <option value={LeaveType.MATERNITY}>Cuti Melahirkan (3 Bulan)</option>
+                <option value={LeaveType.PATERNITY}>Cuti Ayah (5 Hari)</option>
+                <option value={LeaveType.UNPAID}>Cuti Di Luar Tanggungan</option>
               </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
-                  Start Date
+                  Tanggal Mulai
                 </label>
                 <input
                   type="date"
@@ -347,7 +500,7 @@ export function HrDashboardClient({
               </div>
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
-                  End Date
+                  Tanggal Selesai
                 </label>
                 <input
                   type="date"
@@ -361,12 +514,12 @@ export function HrDashboardClient({
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
-                Reason / Remarks
+                Alasan / Catatan
               </label>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Reason for taking leave..."
+                placeholder="Tuliskan alasan pengajuan cuti..."
                 rows={2}
                 className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-300 outline-none placeholder-zinc-700 focus:border-emerald-500 resize-none"
               />
@@ -377,7 +530,7 @@ export function HrDashboardClient({
               disabled={formLoading || !startDate || !endDate}
               className="w-full rounded-xl bg-emerald-500 py-3 text-xs font-semibold text-black hover:opacity-95 disabled:opacity-50 transition active:scale-[0.98]"
             >
-              {formLoading ? "Submitting..." : "Submit Leave Request"}
+              {formLoading ? "Mengirim..." : "Kirim Pengajuan Cuti"}
             </button>
           </form>
         </div>
@@ -385,7 +538,7 @@ export function HrDashboardClient({
         {/* HR/Admin Approval Panel (Conditionally Shown) */}
         {(userRole === "ADMIN" || userRole === "HR") && initialPendingLeaves.length > 0 && (
           <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20">
-            <h3 className="text-base font-bold text-white mb-4">Pending Leave Approvals</h3>
+            <h3 className="text-base font-bold text-white mb-4">Persetujuan Cuti Tertunda</h3>
             <div className="space-y-3 max-h-[220px] overflow-y-auto">
               {initialPendingLeaves.map((request) => (
                 <div key={request.id} className="p-3 rounded-xl border border-zinc-900 bg-zinc-950/60 text-xs">
@@ -396,7 +549,7 @@ export function HrDashboardClient({
                     </span>
                   </div>
                   <p className="text-zinc-400 mb-2">
-                    Dates: {new Date(request.startDate).toLocaleDateString()} to {new Date(request.endDate).toLocaleDateString()}
+                    Tanggal: {new Date(request.startDate).toLocaleDateString("id-ID")} sampai {new Date(request.endDate).toLocaleDateString("id-ID")}
                   </p>
                   {request.reason && <p className="text-zinc-500 italic mb-3">&quot;{request.reason}&quot;</p>}
                   <div className="flex gap-2">
@@ -405,14 +558,14 @@ export function HrDashboardClient({
                       disabled={reviewLoading === request.id}
                       className="flex-1 bg-emerald-500 text-black py-1.5 rounded-lg font-semibold hover:opacity-90 active:scale-[0.97]"
                     >
-                      Approve
+                      Setujui
                     </button>
                     <button
                       onClick={() => handleLeaveReview(request.id, LeaveStatus.REJECTED)}
                       disabled={reviewLoading === request.id}
                       className="flex-1 bg-zinc-800 text-zinc-300 border border-zinc-700 py-1.5 rounded-lg font-semibold hover:bg-zinc-750 active:scale-[0.97]"
                     >
-                      Reject
+                      Tolak
                     </button>
                   </div>
                 </div>
@@ -423,7 +576,7 @@ export function HrDashboardClient({
 
         {/* My Leaves List */}
         <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/10">
-          <h3 className="text-base font-bold text-white mb-4">My Leave History</h3>
+          <h3 className="text-base font-bold text-white mb-4">Riwayat Cuti Saya</h3>
           <div className="space-y-3 max-h-[250px] overflow-y-auto">
             {initialMyLeaves.length > 0 ? (
               initialMyLeaves.map((leave) => {
@@ -441,7 +594,7 @@ export function HrDashboardClient({
                         {leave.type}
                       </span>
                       <span className="text-zinc-500 mt-1 block">
-                        {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
+                        {new Date(leave.startDate).toLocaleDateString("id-ID")} - {new Date(leave.endDate).toLocaleDateString("id-ID")}
                       </span>
                     </div>
                     <span className={`px-2.5 py-0.5 rounded-full font-semibold border ${badgeClass}`}>
@@ -452,7 +605,7 @@ export function HrDashboardClient({
               })
             ) : (
               <div className="text-center py-6 text-zinc-500 text-xs">
-                No leave requests found.
+                Belum ada riwayat pengajuan cuti.
               </div>
             )}
           </div>

@@ -27,13 +27,13 @@ export async function POST(request: Request) {
   // 1. Session verification
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {
-    return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
+    return NextResponse.json({ error: "Akses tidak diizinkan" }, { status: 401 });
   }
 
   try {
     const { messages } = await request.json();
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json({ error: "Missing chat messages" }, { status: 400 });
+      return NextResponse.json({ error: "Pesan chat tidak ditemukan" }, { status: 400 });
     }
 
     const lastMessage = messages[messages.length - 1] as ChatRequestMessage;
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     }
     userPrompt = userPrompt.trim();
     if (!userPrompt) {
-      return NextResponse.json({ error: "Missing user prompt" }, { status: 400 });
+      return NextResponse.json({ error: "Pertanyaan pengguna tidak ditemukan" }, { status: 400 });
     }
 
     // 2. Guardrails validation
@@ -79,10 +79,11 @@ export async function POST(request: Request) {
 
     // 4. Stream response using AI SDK v7 UIMessageStream protocol
     if (hasGroqKey) {
-      const systemInstruction = `You are OpsHub HR Copilot, a professional and helpful human resources assistant for Nanovest.
-Your goal is to answer company policy questions accurately based ONLY on the retrieved policy context provided below.
-If the retrieved context does not contain the answer, politely state that you do not have that information and suggest contacting the HR team.
-Keep your answers clear, concise, and helpful. Always refer to policies professionally.
+      const systemInstruction = `Anda adalah OpsHub HR Copilot, asisten sumber daya manusia yang profesional dan membantu untuk Nanovest.
+Tujuan Anda adalah menjawab pertanyaan kebijakan perusahaan secara akurat HANYA berdasarkan konteks kebijakan yang diambil di bawah ini.
+Selalu jawab dalam Bahasa Indonesia, kecuali pengguna secara eksplisit meminta bahasa lain.
+Jika konteks yang diambil tidak memuat jawabannya, sampaikan dengan sopan bahwa informasi tersebut belum tersedia dan sarankan pengguna menghubungi tim HR.
+Jaga jawaban tetap jelas, ringkas, membantu, dan profesional.
 
 RETRIEVED POLICY CONTEXT (Matched: ${matchedCount} documents):
 ${context}`;
@@ -126,7 +127,7 @@ ${context}`;
                 writer.write({
                   type: "text-delta",
                   id: msgId,
-                  delta: "\n\nI hit a temporary issue while finishing this response. Please try again if you need more detail.",
+                  delta: "\n\nSaya mengalami kendala sementara saat menyelesaikan jawaban ini. Silakan kirim ulang pertanyaan jika Anda membutuhkan detail tambahan.",
                 });
               }
             }
@@ -171,7 +172,7 @@ ${context}`;
     console.error("[ChatAPI] Error during chat processing:", error);
     return NextResponse.json(
       {
-        error: "The HR Copilot hit an unexpected server error. Please try again.",
+        error: "HR Copilot mengalami kesalahan server yang tidak terduga. Silakan coba lagi.",
       },
       { status: 500 }
     );
@@ -183,29 +184,29 @@ function getMockResponseText(prompt: string, matchedCount: number): string {
   const lowerPrompt = prompt.toLowerCase();
 
   if (lowerPrompt.includes("leave") || lowerPrompt.includes("cuti") || lowerPrompt.includes("libur")) {
-    return `Based on Nanovest's Leave Policies:
-- Employees receive **12 days** of Annual Leave per year.
-- Sick leaves require a valid medical certificate submitted within 48 hours.
-- Maternity leave is **3 months** paid, and Paternity leave is **5 days** paid.
+    return `Berdasarkan kebijakan cuti Nanovest:
+- Karyawan mendapatkan **12 hari** cuti tahunan setiap tahun.
+- Cuti sakit memerlukan surat keterangan dokter yang dikirim maksimal 48 jam setelah pengajuan.
+- Cuti melahirkan diberikan selama **3 bulan** dengan gaji penuh, dan cuti ayah selama **5 hari** dengan gaji penuh.
 
-*Policies matched: ${matchedCount}*
+*Kebijakan yang cocok: ${matchedCount}*
 
-Would you like me to draft a leave request for you? You can also use the form on the right.`;
+Apakah Anda ingin saya bantu menyusun pengajuan cuti? Anda juga bisa langsung memakai formulir di sebelah kanan.`;
   } else if (lowerPrompt.includes("salary") || lowerPrompt.includes("gaji") || lowerPrompt.includes("slip")) {
-    return `Regarding Nanovest's Payroll Policies:
-- Salaries are processed and paid on the **25th of every month**.
-- Payslips can be downloaded from the HR portal directly.
-- Overtime must be pre-approved by your team lead.
+    return `Terkait kebijakan payroll Nanovest:
+- Gaji diproses dan dibayarkan setiap tanggal **25 setiap bulan**.
+- Slip gaji dapat diunduh langsung melalui portal HR.
+- Lembur harus mendapat persetujuan terlebih dahulu dari atasan tim.
 
-*Policies matched: ${matchedCount}*`;
+*Kebijakan yang cocok: ${matchedCount}*`;
   } else {
-    return `Hello! I am your Nanovest HR Copilot. I can help you with:
-1. Answering questions about Nanovest HR regulations (leaves, payroll, onboarding).
-2. Submitting or checking your leave requests.
-3. Reviewing company policy documents.
+    return `Halo, saya HR Copilot Nanovest. Saya dapat membantu Anda untuk:
+1. Menjawab pertanyaan tentang kebijakan HR Nanovest, seperti cuti, payroll, dan onboarding.
+2. Membantu pengajuan atau pengecekan status cuti.
+3. Meninjau informasi kebijakan perusahaan yang tersedia.
 
-*Policies matched: ${matchedCount}*
+*Kebijakan yang cocok: ${matchedCount}*
 
-How can I assist you today?`;
+Apa yang ingin Anda tanyakan hari ini?`;
   }
 }

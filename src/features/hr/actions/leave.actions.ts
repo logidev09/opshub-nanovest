@@ -7,6 +7,15 @@ import { HrRepository } from "../repositories/hr.repository";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
+type SessionUser = {
+  id: string;
+  role?: string;
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export async function submitLeaveAction(data: {
   type: LeaveType;
   startDate: string;
@@ -15,39 +24,41 @@ export async function submitLeaveAction(data: {
 }) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {
-    return { success: false, error: "Unauthorized access." };
+    return { success: false, error: "Akses tidak diizinkan." };
   }
 
-  const userId = (session.user as any).id;
+  const user = session.user as SessionUser;
+  const userId = user.id;
   try {
     const result = await HrService.requestLeave(userId, data);
     revalidatePath("/dashboard/hr");
     revalidatePath("/dashboard");
     return { success: true, data: JSON.parse(JSON.stringify(result)) };
-  } catch (error: any) {
-    return { success: false, error: error.message || "Failed to submit leave request." };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error, "Gagal mengirim pengajuan cuti.") };
   }
 }
 
 export async function reviewLeaveAction(leaveId: string, status: LeaveStatus) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {
-    return { success: false, error: "Unauthorized access." };
+    return { success: false, error: "Akses tidak diizinkan." };
   }
 
-  const role = (session.user as any).role;
+  const user = session.user as SessionUser;
+  const role = user.role;
   if (role !== "ADMIN" && role !== "HR") {
-    return { success: false, error: "Forbidden: You do not have permissions to review leave requests." };
+    return { success: false, error: "Akses ditolak: Anda tidak memiliki izin untuk meninjau pengajuan cuti." };
   }
 
-  const approverId = (session.user as any).id;
+  const approverId = user.id;
   try {
     const result = await HrService.reviewLeave(leaveId, status, approverId);
     revalidatePath("/dashboard/hr");
     revalidatePath("/dashboard");
     return { success: true, data: JSON.parse(JSON.stringify(result)) };
-  } catch (error: any) {
-    return { success: false, error: error.message || "Failed to review leave request." };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error, "Gagal memproses pengajuan cuti.") };
   }
 }
 
@@ -56,6 +67,7 @@ export async function getLeaveBalanceAction() {
   if (!session || !session.user) {
     return 0;
   }
-  const userId = (session.user as any).id;
+  const user = session.user as SessionUser;
+  const userId = user.id;
   return HrRepository.getLeaveBalance(userId);
 }

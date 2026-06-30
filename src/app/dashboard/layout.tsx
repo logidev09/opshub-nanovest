@@ -5,6 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+const githubUrl = "https://github.com/logidev09/opshub-nanovest";
+
+type SessionUser = {
+  name?: string | null;
+  role?: string;
+};
+
 // Inline SVG Icon components for simplicity and aesthetics
 const IconHome = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -40,6 +47,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { data: session } = useSession();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const sessionUser = session?.user as SessionUser | undefined;
 
   const navigation = [
     { name: "Overview", href: "/dashboard", icon: IconHome },
@@ -99,10 +107,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
                 <div className="ml-3">
                   <p className="text-xs font-semibold text-white truncate max-w-[120px]">
-                    {session?.user?.name || "User"}
+                    {sessionUser?.name || "Pengguna"}
                   </p>
                   <p className="text-[10px] text-zinc-500 font-medium tracking-wide uppercase">
-                    {(session?.user as any)?.role || "USER"}
+                    {sessionUser?.role || "USER"}
                   </p>
                 </div>
               </div>
@@ -193,8 +201,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   {session?.user?.name?.[0]?.toUpperCase() || "U"}
                 </div>
                 <div className="ml-3">
-                  <p className="text-xs font-semibold text-white">{session?.user?.name || "User"}</p>
-                  <p className="text-[9px] text-zinc-500 uppercase">{(session?.user as any)?.role || "USER"}</p>
+                  <p className="text-xs font-semibold text-white">{sessionUser?.name || "Pengguna"}</p>
+                  <p className="text-[9px] text-zinc-500 uppercase">{sessionUser?.role || "USER"}</p>
                 </div>
               </div>
               <button
@@ -209,7 +217,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto bg-zinc-950 focus:outline-none p-6 md:p-8">
-          <div className="max-w-7xl mx-auto">{children}</div>
+          <div className="max-w-7xl mx-auto space-y-6">
+            <div className="flex justify-end">
+              <Link
+                href={githubUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:border-emerald-500/40 hover:text-emerald-300"
+                aria-label="Buka repositori GitHub"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2C6.477 2 2 6.589 2 12.248c0 4.526 2.865 8.367 6.839 9.722.5.095.682-.221.682-.492 0-.243-.009-.888-.014-1.742-2.782.617-3.369-1.373-3.369-1.373-.455-1.185-1.11-1.5-1.11-1.5-.908-.637.069-.624.069-.624 1.004.072 1.532 1.055 1.532 1.055.892 1.57 2.341 1.116 2.91.853.091-.664.35-1.116.636-1.373-2.221-.259-4.555-1.14-4.555-5.073 0-1.12.39-2.036 1.029-2.754-.103-.26-.446-1.307.098-2.725 0 0 .84-.276 2.75 1.052A9.34 9.34 0 0112 6.836a9.3 9.3 0 012.504.347c1.909-1.328 2.747-1.052 2.747-1.052.546 1.418.203 2.465.1 2.725.64.718 1.027 1.634 1.027 2.754 0 3.943-2.338 4.811-4.566 5.065.359.318.679.946.679 1.907 0 1.377-.012 2.487-.012 2.826 0 .273.18.592.688.491C19.138 20.611 22 16.772 22 12.248 22 6.589 17.523 2 12 2z" />
+                </svg>
+                <span>GitHub</span>
+              </Link>
+            </div>
+            <div>{children}</div>
+          </div>
         </main>
       </div>
     </div>

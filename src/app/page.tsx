@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, Suspense } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+
+const githubUrl = "https://github.com/logidev09/opshub-nanovest";
 
 function LoginForm() {
   const router = useRouter();
@@ -28,13 +31,13 @@ function LoginForm() {
       });
 
       if (res?.error) {
-        setError("Invalid email or password. Please try again.");
+        setError("Email atau kata sandi tidak valid. Silakan coba lagi.");
       } else {
         router.push(callbackUrl);
         router.refresh();
       }
-    } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
+    } catch {
+      setError("Terjadi kesalahan tak terduga. Silakan coba lagi.");
     } finally {
       setLoading(false);
     }
@@ -47,7 +50,7 @@ function LoginForm() {
 
   return (
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 backdrop-blur-xl p-8 shadow-2xl">
-      <h2 className="text-xl font-semibold text-white mb-6">Sign In</h2>
+      <h2 className="text-xl font-semibold text-white mb-6">Masuk</h2>
 
       {error && (
         <div className="mb-4 rounded-lg bg-red-950/50 border border-red-500/30 p-3 text-sm text-red-400">
@@ -61,7 +64,7 @@ function LoginForm() {
             htmlFor="email"
             className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2"
           >
-            Email Address
+            Alamat Email
           </label>
           <input
             id="email"
@@ -80,7 +83,7 @@ function LoginForm() {
               htmlFor="password"
               className="block text-xs font-semibold uppercase tracking-wider text-zinc-400"
             >
-              Password
+              Kata Sandi
             </label>
           </div>
           <input
@@ -102,7 +105,7 @@ function LoginForm() {
           {loading ? (
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-black border-t-transparent" />
           ) : (
-            "Sign In"
+            "Masuk"
           )}
         </button>
       </form>
@@ -110,7 +113,7 @@ function LoginForm() {
       {/* Quick Login Section */}
       <div className="mt-8 border-t border-zinc-800 pt-6">
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3 text-center">
-          Quick Demo Accounts
+          Akun Demo Cepat
         </p>
         <div className="grid grid-cols-3 gap-2">
           <button
@@ -132,11 +135,11 @@ function LoginForm() {
             onClick={() => handleQuickLogin("user@nanovest.io")}
             className="rounded-lg bg-zinc-950 border border-zinc-800 py-2 px-1 text-[11px] font-medium text-emerald-400 hover:bg-zinc-900 transition"
           >
-            Employee
+            Ilham Rizkyansyah
           </button>
         </div>
         <p className="text-[10px] text-zinc-500 text-center mt-3">
-          Password for all accounts is: <code className="text-zinc-400">password123</code>
+          Kata sandi semua akun: <code className="text-zinc-400">password123</code>
         </p>
       </div>
     </div>
@@ -146,6 +149,19 @@ function LoginForm() {
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-4 text-zinc-100 font-sans selection:bg-emerald-500 selection:text-black">
+      <Link
+        href={githubUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="absolute right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/80 text-zinc-300 shadow-lg backdrop-blur transition hover:border-emerald-500/40 hover:text-emerald-300"
+        aria-label="Buka repositori GitHub"
+        title="Lihat repositori GitHub"
+      >
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 2C6.477 2 2 6.589 2 12.248c0 4.526 2.865 8.367 6.839 9.722.5.095.682-.221.682-.492 0-.243-.009-.888-.014-1.742-2.782.617-3.369-1.373-3.369-1.373-.455-1.185-1.11-1.5-1.11-1.5-.908-.637.069-.624.069-.624 1.004.072 1.532 1.055 1.532 1.055.892 1.57 2.341 1.116 2.91.853.091-.664.35-1.116.636-1.373-2.221-.259-4.555-1.14-4.555-5.073 0-1.12.39-2.036 1.029-2.754-.103-.26-.446-1.307.098-2.725 0 0 .84-.276 2.75 1.052A9.34 9.34 0 0112 6.836a9.3 9.3 0 012.504.347c1.909-1.328 2.747-1.052 2.747-1.052.546 1.418.203 2.465.1 2.725.64.718 1.027 1.634 1.027 2.754 0 3.943-2.338 4.811-4.566 5.065.359.318.679.946.679 1.907 0 1.377-.012 2.487-.012 2.826 0 .273.18.592.688.491C19.138 20.611 22 16.772 22 12.248 22 6.589 17.523 2 12 2z" />
+        </svg>
+      </Link>
+
       {/* Background radial glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] rounded-full bg-emerald-950/20 blur-[120px]" />
@@ -177,6 +193,9 @@ export default function Home() {
           <p className="mt-2 text-zinc-400 text-sm">
             Internal Operations Portal & AI Copilot Platform
           </p>
+          <p className="mt-2 text-xs text-zinc-500">
+            Portofolio ini dibuat oleh <span className="font-semibold text-zinc-300">Ilham Rizkyansyah</span> · Universitas Gunadarma Informatika
+          </p>
         </div>
 
         {/* Card containing login form wrapped in Suspense */}
@@ -184,7 +203,7 @@ export default function Home() {
           fallback={
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 backdrop-blur-xl p-8 shadow-2xl text-center py-20">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent mx-auto mb-4" />
-              <p className="text-zinc-500 text-xs">Loading authentication interface...</p>
+              <p className="text-zinc-500 text-xs">Memuat antarmuka autentikasi...</p>
             </div>
           }
         >
@@ -192,7 +211,7 @@ export default function Home() {
         </Suspense>
 
         <p className="mt-8 text-center text-xs text-zinc-500">
-          OpsHub © 2026 Nanovest. For internal use only.
+          OpsHub © 2026 Nanovest. Untuk penggunaan internal.
         </p>
       </div>
     </div>
