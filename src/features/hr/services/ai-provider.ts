@@ -1,9 +1,16 @@
 import { createGroq } from "@ai-sdk/groq";
 
-export const hasGroqKey = !!process.env.GROQ_API_KEY;
+const groqApiKey = process.env.GROQ_API_KEY?.trim();
+export const hasGroqKey =
+  !!groqApiKey &&
+  groqApiKey.length >= 20 &&
+  !groqApiKey.includes('"') &&
+  !groqApiKey.includes("'") &&
+  groqApiKey.toLowerCase() !== "undefined" &&
+  groqApiKey.toLowerCase() !== "null";
 
 const groqProvider = createGroq({
-  apiKey: process.env.GROQ_API_KEY || "mock-key",
+  apiKey: groqApiKey || "mock-key",
 });
 
 // Using a stable Groq model (llama-3.3-70b-specdec or llama3-70b-8192)
