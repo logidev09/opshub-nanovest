@@ -27,14 +27,27 @@ export async function POST(request: Request) {
     }
 
     const lastMessage = messages[messages.length - 1];
+    console.log("[ChatAPI] Raw lastMessage keys:", Object.keys(lastMessage));
+    console.log("[ChatAPI] Raw lastMessage:", JSON.stringify(lastMessage).substring(0, 500));
+
+    // Extract user prompt - handle all AI SDK message formats
     let userPrompt = "";
-    if (typeof lastMessage.content === "string" && lastMessage.content) {
-      userPrompt = lastMessage.content;
-    } else if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
+    // v7 format: parts array with {type: "text", text: "..."}
+    if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
       userPrompt = lastMessage.parts
-        .map((part: any) => (part.type === "text" ? part.text : ""))
+        .filter((part: any) => part.type === "text")
+        .map((part: any) => part.text || "")
         .join("");
     }
+    // v4 format: content as string
+    if (!userPrompt && typeof lastMessage.content === "string") {
+      userPrompt = lastMessage.content;
+    }
+    // Fallback: try text field directly
+    if (!userPrompt && typeof lastMessage.text === "string") {
+      userPrompt = lastMessage.text;
+    }
+    console.log("[ChatAPI] Extracted userPrompt:", userPrompt);
 
     // 2. Guardrails validation
     const guardrailResult = await checkGuardrails(userPrompt);
