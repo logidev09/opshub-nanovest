@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const githubUrl = "https://github.com/logidev09/opshub-nanovest";
+const cafeUrl = "https://warungsasa.alwaysdata.net/";
 
 function LoginForm() {
   const router = useRouter();
@@ -147,6 +148,8 @@ function LoginForm() {
 }
 
 export default function Home() {
+  const [showPopup, setShowPopup] = useState(true);
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-4 text-zinc-100 font-sans selection:bg-emerald-500 selection:text-black">
       <Link
@@ -167,6 +170,34 @@ export default function Home() {
         <div className="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] rounded-full bg-emerald-950/20 blur-[120px]" />
         <div className="absolute -bottom-[40%] -right-[20%] w-[80%] h-[80%] rounded-full bg-zinc-900/40 blur-[120px]" />
       </div>
+
+      {/* Cafe Popup - Bottom Left */}
+      {showPopup && (
+        <div className="fixed bottom-4 left-4 z-50">
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 backdrop-blur-xl p-3 shadow-2xl max-w-[280px]">
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="text-sm font-semibold text-white">Website Pemesanan Cafe + AI Chat</h3>
+              <button
+                onClick={() => setShowPopup(false)}
+                className="text-zinc-400 hover:text-white transition ml-2"
+                aria-label="Tutup"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <Link
+              href={cafeUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-emerald-400 hover:text-emerald-300 transition underline"
+            >
+              {cafeUrl}
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="w-full max-w-md z-10">
         {/* Logo and title */}
