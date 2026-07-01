@@ -1,22 +1,30 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 const githubUrl = "https://github.com/logidev09/opshub-nanovest";
 const cafeUrl = "https://warungsasa.alwaysdata.net/";
 
 function LoginForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-
+  const [callbackUrl, setCallbackUrl] = useState("/dashboard");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const cb = searchParams.get("callbackUrl");
+      if (cb) {
+        setCallbackUrl(cb);
+      }
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,9 +179,9 @@ export default function Home() {
         <div className="absolute -bottom-[40%] -right-[20%] w-[80%] h-[80%] rounded-full bg-zinc-900/40 blur-[120px]" />
       </div>
 
-      {/* Cafe Popup - Bottom Left */}
+      {/* Cafe Popup - Bottom Right */}
       {showPopup && (
-        <div className="fixed bottom-4 left-4 z-50">
+        <div className="fixed bottom-4 right-4 z-50">
           <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 backdrop-blur-xl p-3 shadow-2xl max-w-[280px]">
             <div className="flex justify-between items-start mb-2">
               <h3 className="text-sm font-semibold text-white">Website Pemesanan Cafe + AI Chat</h3>
@@ -229,17 +237,8 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Card containing login form wrapped in Suspense */}
-        <Suspense
-          fallback={
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 backdrop-blur-xl p-8 shadow-2xl text-center py-20">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent mx-auto mb-4" />
-              <p className="text-zinc-500 text-xs">Memuat antarmuka autentikasi...</p>
-            </div>
-          }
-        >
-          <LoginForm />
-        </Suspense>
+        {/* Card containing login form */}
+        <LoginForm />
 
         <p className="mt-8 text-center text-xs text-zinc-500">
           OpsHub © 2026 Nanovest. Untuk penggunaan internal.
