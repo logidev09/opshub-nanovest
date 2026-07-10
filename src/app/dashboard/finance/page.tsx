@@ -1,6 +1,8 @@
 import { getLedgerSnapshot } from "@/features/finance/lib/ledger";
 import { FinanceLedgerClient } from "@/features/finance/components/finance-ledger-client";
 
+export const dynamic = "force-dynamic";
+
 export default async function FinanceLedgerPage() {
   const snapshot = await getLedgerSnapshot();
 
