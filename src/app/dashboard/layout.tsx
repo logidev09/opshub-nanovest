@@ -118,19 +118,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* User profile drawer */}
           <div className="flex-shrink-0 flex border-t border-zinc-900 p-4 bg-zinc-950/20">
             <div className="flex items-center w-full justify-between">
-              <div className="flex items-center">
-                <div className="inline-block h-9 w-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 font-semibold text-sm">
-                  {session?.user?.name?.[0]?.toUpperCase() || "U"}
+              <Link href="/dashboard/profile" className="flex items-center group cursor-pointer">
+                <div className="inline-block h-9 w-9 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden flex items-center justify-center text-zinc-300 font-semibold text-sm group-hover:border-emerald-500/50 transition">
+                  {session?.user?.image ? (
+                    <img src={session.user.image} alt={sessionUser?.name || "U"} className="h-full w-full object-cover" />
+                  ) : (
+                    session?.user?.name?.[0]?.toUpperCase() || "U"
+                  )}
                 </div>
-                <div className="ml-3">
-                  <p className="text-xs font-semibold text-white truncate max-w-[120px]">
+                <div className="ml-3 text-left">
+                  <p className="text-xs font-semibold text-white truncate max-w-[120px] group-hover:text-emerald-400 transition">
                     {sessionUser?.name || "Pengguna"}
                   </p>
                   <p className="text-[10px] text-zinc-500 font-medium tracking-wide uppercase">
                     {formatRoleLabel(sessionUser?.role)}
                   </p>
                 </div>
-              </div>
+              </Link>
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
                 className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/20 transition duration-150"
@@ -213,15 +217,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
           <div className="flex-shrink-0 flex border-t border-zinc-800 p-4 bg-zinc-950/20">
             <div className="flex items-center w-full justify-between">
-              <div className="flex items-center">
-                <div className="h-8 w-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-300 font-semibold text-xs">
-                  {session?.user?.name?.[0]?.toUpperCase() || "U"}
+              <Link
+                href="/dashboard/profile"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center group cursor-pointer"
+              >
+                <div className="h-8 w-8 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden flex items-center justify-center text-zinc-300 font-semibold text-xs group-hover:border-emerald-500/50 transition">
+                  {session?.user?.image ? (
+                    <img src={session.user.image} alt={sessionUser?.name || "U"} className="h-full w-full object-cover" />
+                  ) : (
+                    session?.user?.name?.[0]?.toUpperCase() || "U"
+                  )}
                 </div>
-                <div className="ml-3">
-                  <p className="text-xs font-semibold text-white">{sessionUser?.name || "Pengguna"}</p>
-                  <p className="text-[9px] text-zinc-500 uppercase">{formatRoleLabel(sessionUser?.role)}</p>
+                <div className="ml-3 text-left">
+                  <p className="text-xs font-semibold text-white group-hover:text-emerald-400 transition">
+                    {sessionUser?.name || "Pengguna"}
+                  </p>
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-wide">
+                    {formatRoleLabel(sessionUser?.role)}
+                  </p>
                 </div>
-              </div>
+              </Link>
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
                 className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 transition"

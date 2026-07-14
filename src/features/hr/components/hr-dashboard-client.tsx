@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
+import { useSession } from "next-auth/react";
 import { submitLeaveAction, reviewLeaveAction } from "@/features/hr/actions/leave.actions";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -27,6 +28,8 @@ interface LeaveHistoryItem {
   status: LeaveStatus;
   startDate: Date | string;
   endDate: Date | string;
+  userName?: string | null;
+  userEmail?: string | null;
 }
 
 interface PendingLeaveItem {
@@ -35,32 +38,38 @@ interface PendingLeaveItem {
   startDate: Date | string;
   endDate: Date | string;
   reason: string | null;
+  userId: string;
   user: {
     name: string | null;
+    email: string | null;
   };
 }
 
-function ChatAvatar({ role }: { role: UIMessage["role"] }) {
+function ChatAvatar({ role, image }: { role: UIMessage["role"]; image?: string | null }) {
   const isUser = role === "user";
 
   return (
     <div
       className={`flex h-10 w-10 min-h-10 min-w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border shadow-sm ${
         isUser
-          ? "border-emerald-400/30 bg-emerald-500 text-black"
+          ? "border-emerald-400/30 bg-zinc-900 text-emerald-300"
           : "border-emerald-500/20 bg-zinc-900 text-emerald-300"
       }`}
       aria-hidden="true"
     >
       {isUser ? (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M15 19a3 3 0 00-6 0m6 0a3 3 0 013 3H6a3 3 0 013-3m6 0v-1a3 3 0 10-6 0v1m6-9a3 3 0 11-6 0 3 3 0 016 0z"
-          />
-        </svg>
+        image ? (
+          <img src={image} alt="User Avatar" className="h-full w-full object-cover" />
+        ) : (
+          <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19a3 3 0 00-6 0m6 0a3 3 0 013 3H6a3 3 0 013-3m6 0v-1a3 3 0 10-6 0v1m6-9a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+          </svg>
+        )
       ) : (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
@@ -91,19 +100,40 @@ function renderMessageText(message: UIMessage) {
   return message.role === "assistant" ? "..." : null;
 }
 
-function getMessageLabel(role: UIMessage["role"]) {
-  return role === "user" ? "Employee" : "HR AI";
-}
-
 export function HrDashboardClient({
+  userId,
   userRole,
   initialBalance,
   initialMyLeaves,
   initialPendingLeaves,
-}: HrDashboardClientProps) {
+}: HrDashboardClientProps & { userId: string }) {
   const router = useRouter();
-  const [chatAlert, setChatAlert] = useState<ChatAlert | null>(null);
+  const { data: session } = useSession();
+  const userName = session?.user?.name || "Employee";
+  const userImage = session?.user?.image;
+  const userRoleFormatted = userRole === "ADMIN" ? "Admin" : userRole === "HR" ? "HR Specialist" : "Employee";
 
+  const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  const openProfileModal = async (profileUserId: string) => {
+    setProfileLoading(true);
+    try {
+      const res = await fetch(`/api/user/${profileUserId}`);
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.data) {
+          setSelectedProfile(result.data);
+        }
+      }
+    } catch (err) {
+      console.error("Gagal memuat profil:", err);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const [chatAlert, setChatAlert] = useState<ChatAlert | null>(null);
   const [input, setInput] = useState("");
 
   // Vercel AI SDK Chat hook
@@ -258,10 +288,10 @@ export function HrDashboardClient({
                   m.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
                 }`}
               >
-                <ChatAvatar role={m.role} />
+                <ChatAvatar role={m.role} image={m.role === "user" ? userImage : null} />
                 <div className={`space-y-1 ${m.role === "user" ? "items-end text-right" : ""}`}>
                   <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${m.role === "user" ? "text-emerald-300" : "text-zinc-500"}`}>
-                    {getMessageLabel(m.role)}
+                    {m.role === "user" ? `${userName} (${userRoleFormatted})` : "HR AI"}
                   </p>
                   <div
                     className={`rounded-2xl px-4 py-3 leading-relaxed whitespace-pre-wrap ${
@@ -411,7 +441,7 @@ export function HrDashboardClient({
                     required
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500"
+                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 pl-3 pr-20 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500"
                   />
                   <button
                     type="button"
@@ -433,7 +463,7 @@ export function HrDashboardClient({
                     required
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500"
+                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 pl-3 pr-20 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500"
                   />
                   <button
                     type="button"
@@ -466,9 +496,15 @@ export function HrDashboardClient({
             >
               {formLoading ? "Mengirim..." : "Kirim Pengajuan Cuti"}
             </button>
-            <p className="text-[11px] leading-relaxed text-zinc-500">
-              Anda juga bisa mengetik di chat seperti <span className="text-zinc-300">&quot;Saya ingin cuti besok karena kontrol gigi&quot;</span> dan sistem akan otomatis membuat pengajuan jika tanggalnya terbaca.
-            </p>
+            {userRole === "HR" || userRole === "ADMIN" ? (
+              <p className="text-[11px] leading-relaxed text-zinc-500">
+                Sebagai HR/Admin, Anda dapat memantau, menyetujui, dan menolak cuti karyawan langsung dari panel di bawah ini atau melalui perintah chatbot (misal: <span className="text-zinc-300">&quot;setujui semua pengajuan cuti&quot;</span>).
+              </p>
+            ) : (
+              <p className="text-[11px] leading-relaxed text-zinc-500">
+                Anda juga bisa mengetik di chat seperti <span className="text-zinc-300">&quot;Saya ingin cuti besok karena kontrol gigi&quot;</span> dan sistem akan otomatis membuat pengajuan jika tanggalnya terbaca.
+              </p>
+            )}
           </form>
         </div>
 
@@ -480,7 +516,14 @@ export function HrDashboardClient({
               {initialPendingLeaves.map((request) => (
                 <div key={request.id} className="p-3 rounded-xl border border-zinc-900 bg-zinc-950/60 text-xs">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold text-white">{request.user.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => openProfileModal(request.userId)}
+                      className="font-bold text-emerald-400 hover:text-emerald-300 transition hover:underline cursor-pointer text-left"
+                      title="Lihat Detail Profil Karyawan"
+                    >
+                      {request.user.name}
+                    </button>
                     <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                       {request.type}
                     </span>
@@ -511,9 +554,11 @@ export function HrDashboardClient({
           </div>
         )}
 
-        {/* My Leaves List */}
+        {/* My Leaves List / All Leaves List */}
         <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/10">
-          <h3 className="text-base font-bold text-white mb-4">Riwayat Cuti Saya</h3>
+          <h3 className="text-base font-bold text-white mb-4">
+            {userRole === "HR" || userRole === "ADMIN" ? "Riwayat Cuti Seluruh Karyawan" : "Riwayat Cuti Saya"}
+          </h3>
           <div className="space-y-3 max-h-[250px] overflow-y-auto">
             {initialMyLeaves.length > 0 ? (
               initialMyLeaves.map((leave) => {
@@ -528,7 +573,7 @@ export function HrDashboardClient({
                   >
                     <div>
                       <span className="font-semibold text-white block uppercase tracking-wide text-[10px]">
-                        {leave.type}
+                        {leave.type} {leave.userName ? `· ${leave.userName}` : ""}
                       </span>
                       <span className="text-zinc-500 mt-1 block">
                         {new Date(leave.startDate).toLocaleDateString("id-ID")} - {new Date(leave.endDate).toLocaleDateString("id-ID")}
@@ -548,6 +593,52 @@ export function HrDashboardClient({
           </div>
         </div>
       </div>
+
+      {/* Profile Detail Modal (Task 4) */}
+      {selectedProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl max-w-sm w-full space-y-4">
+            <div className="flex justify-between items-start">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider text-zinc-400">Profil Karyawan</h3>
+              <button
+                onClick={() => setSelectedProfile(null)}
+                className="text-zinc-400 hover:text-white transition"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-full bg-zinc-850 border border-zinc-700 flex items-center justify-center text-zinc-300 font-bold overflow-hidden">
+                {selectedProfile.image ? (
+                  <img src={selectedProfile.image} alt={selectedProfile.name} className="h-full w-full object-cover" />
+                ) : (
+                  selectedProfile.name?.[0]?.toUpperCase() || "U"
+                )}
+              </div>
+              <div className="text-left">
+                <h4 className="text-sm font-bold text-white">{selectedProfile.name}</h4>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mt-0.5">
+                  {selectedProfile.role} · {selectedProfile.division || "Divisi Belum Diatur"}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2 text-xs border-t border-zinc-800 pt-3 text-left">
+              <div>
+                <span className="text-zinc-500 block text-[9px] uppercase font-bold tracking-wide">Email</span>
+                <span className="text-zinc-300 font-medium">{selectedProfile.email}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 block text-[9px] uppercase font-bold tracking-wide">Nomor HP</span>
+                <span className="text-zinc-300 font-medium">{selectedProfile.phone || "-"}</span>
+              </div>
+              <div>
+                <span className="text-zinc-500 block text-[9px] uppercase font-bold tracking-wide">Tentang Karyawan</span>
+                <p className="text-zinc-400 mt-0.5 leading-relaxed italic">{selectedProfile.bio || "Tidak ada biodata."}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

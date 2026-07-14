@@ -13,6 +13,8 @@ import {
 } from "ai";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/features/shared/lib/db";
+import { AuditService } from "@/features/audit/services/audit.service";
 
 interface ChatRequestPart {
   type?: string;
@@ -74,7 +76,142 @@ export async function POST(request: Request) {
       );
     }
 
-    const sessionUser = session.user as { id: string; name?: string | null };
+    const sessionUser = session.user as { id: string; name?: string | null; role?: string };
+
+    // Chatbot command execution for HR & ADMIN: Approve/Reject Leaves (Task 11)
+    if (sessionUser.role === "HR" || sessionUser.role === "ADMIN") {
+      const isApproveCommand = /setujui\s+semua|terima\s+semua|approve\s+all/i.test(userPrompt);
+      const isRejectCommand = /tolak\s+semua|reject\s+all/i.test(userPrompt);
+
+      if (isApproveCommand || isRejectCommand) {
+        try {
+          const targetStatus = isApproveCommand ? "APPROVED" : "REJECTED";
+          const pendingLeaves = await prisma.leaveRequest.findMany({
+            where: { status: "PENDING" },
+            include: { user: { select: { name: true } } }
+          });
+
+          if (pendingLeaves.length === 0) {
+            return createStreamFromPlainText(
+              "Halo! Saat ini tidak ada pengajuan cuti karyawan berstatus PENDING untuk diproses.",
+              "leave-action-none-" + Date.now()
+            );
+          }
+
+          await prisma.leaveRequest.updateMany({
+            where: { status: "PENDING" },
+            data: {
+              status: targetStatus,
+              approvedBy: sessionUser.id,
+              approvedAt: new Date()
+            }
+          });
+
+          for (const req of pendingLeaves) {
+            await AuditService.log({
+              userId: sessionUser.id,
+              action: isApproveCommand ? "APPROVE_LEAVE" : "REJECT_LEAVE",
+              entity: "LeaveRequest",
+              entityId: req.id,
+              oldValue: { status: "PENDING" },
+              newValue: { status: targetStatus }
+            });
+          }
+
+          revalidatePath("/dashboard");
+          revalidatePath("/dashboard/hr");
+
+          const count = pendingLeaves.length;
+          const statusText = isApproveCommand ? "disetujui" : "ditolak";
+          const listNames = pendingLeaves.map(l => l.user.name).join(", ");
+          
+          return createStreamFromPlainText(
+            `[SYSTEM ACTION] Berhasil melakukan pemrosesan otomatis. Sebanyak ${count} pengajuan cuti dari (${listNames}) telah berhasil ${statusText}.`,
+            "leave-action-success-" + Date.now()
+          );
+        } catch (err: any) {
+          return createStreamFromPlainText(
+            `Gagal memproses aksi persetujuan massal. Detail: ${err.message || err}`,
+            "leave-action-error-" + Date.now()
+          );
+        }
+      }
+
+      // Check specific employee leave approval/rejection command (e.g. "setujui cuti Budi")
+      const approveSpecificMatch = userPrompt.match(/(?:setujui|terima)\s+cuti\s+([a-zA-Z\s]+)/i);
+      const rejectSpecificMatch = userPrompt.match(/(?:tolak|reject)\s+cuti\s+([a-zA-Z\s]+)/i);
+
+      if (approveSpecificMatch || rejectSpecificMatch) {
+        const namePart = (approveSpecificMatch ? approveSpecificMatch[1] : rejectSpecificMatch![1]).trim();
+        if (namePart && namePart.length > 2) {
+          try {
+            const targetStatus = approveSpecificMatch ? "APPROVED" : "REJECTED";
+            
+            // Find users matching name
+            const matchingUsers = await prisma.user.findMany({
+              where: { name: { contains: namePart, mode: "insensitive" } }
+            });
+
+            if (matchingUsers.length === 0) {
+              return createStreamFromPlainText(
+                `Saya tidak menemukan karyawan dengan nama yang cocok dengan "${namePart}".`,
+                "leave-specific-notfound-" + Date.now()
+              );
+            }
+
+            const userIds = matchingUsers.map(u => u.id);
+            const pendingLeaves = await prisma.leaveRequest.findMany({
+              where: { userId: { in: userIds }, status: "PENDING" },
+              include: { user: { select: { name: true } } }
+            });
+
+            if (pendingLeaves.length === 0) {
+              const matchedNames = matchingUsers.map(u => u.name).join(", ");
+              return createStreamFromPlainText(
+                `Ditemukan karyawan (${matchedNames}), tetapi tidak ada pengajuan cuti aktif yang berstatus PENDING.`,
+                "leave-specific-pending-none-" + Date.now()
+              );
+            }
+
+            await prisma.leaveRequest.updateMany({
+              where: { id: { in: pendingLeaves.map(l => l.id) } },
+              data: {
+                status: targetStatus,
+                approvedBy: sessionUser.id,
+                approvedAt: new Date()
+              }
+            });
+
+            for (const req of pendingLeaves) {
+              await AuditService.log({
+                userId: sessionUser.id,
+                action: approveSpecificMatch ? "APPROVE_LEAVE" : "REJECT_LEAVE",
+                entity: "LeaveRequest",
+                entityId: req.id,
+                oldValue: { status: "PENDING" },
+                newValue: { status: targetStatus }
+              });
+            }
+
+            revalidatePath("/dashboard");
+            revalidatePath("/dashboard/hr");
+
+            const matchedEmployeeName = pendingLeaves[0].user.name;
+            const actionText = approveSpecificMatch ? "disetujui" : "ditolak";
+            return createStreamFromPlainText(
+              `[SYSTEM ACTION] Pengajuan cuti untuk karyawan "${matchedEmployeeName}" berhasil ${actionText} secara otomatis.`,
+              "leave-specific-success-" + Date.now()
+            );
+          } catch (err: any) {
+            return createStreamFromPlainText(
+              `Gagal memproses aksi persetujuan. Detail: ${err.message || err}`,
+              "leave-specific-error-" + Date.now()
+            );
+          }
+        }
+      }
+    }
+
     const autoLeaveIntent = extractLeaveIntent(userPrompt);
     if (autoLeaveIntent) {
       try {

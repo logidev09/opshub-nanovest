@@ -54,6 +54,15 @@ export function FinanceLedgerClient({
   categoryTotals,
 }: FinanceLedgerClientProps) {
   const router = useRouter();
+  
+  // Calculate totals for visualization
+  const asset = categoryTotals.ASSET || 0;
+  const liability = categoryTotals.LIABILITY || 0;
+  const equity = categoryTotals.EQUITY || 0;
+  const revenue = categoryTotals.REVENUE || 0;
+  const expense = categoryTotals.EXPENSE || 0;
+  const totalBS = asset + liability + equity;
+
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
   const [debitAccountId, setDebitAccountId] = useState(accounts[0]?.id ?? "");
@@ -128,6 +137,142 @@ export function FinanceLedgerClient({
               <span className="font-medium text-zinc-300">{formatCurrency(item.value)}</span>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Visual Chart Card */}
+      <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6 md:p-8 backdrop-blur-xl">
+        <h3 className="text-sm font-bold text-white mb-6 uppercase tracking-wider text-zinc-400">Financial Breakdown Visualization</h3>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+          {/* Balance Sheet Donut Chart (Col 5) */}
+          <div className="md:col-span-5 flex flex-col items-center justify-center p-4 border border-zinc-900 rounded-xl bg-zinc-950/20">
+            <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">Balance Sheet Structure</h4>
+            <div className="relative h-44 w-44">
+              <svg className="h-full w-full" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="35" fill="transparent" stroke="#18181b" strokeWidth="10" />
+                {/* Asset (Green) */}
+                {asset > 0 && (
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="35"
+                    fill="transparent"
+                    stroke="#10b981"
+                    strokeWidth="10"
+                    strokeDasharray={`${(asset / (totalBS || 1)) * 219.9} ${219.9}`}
+                    strokeDashoffset="0"
+                    transform="rotate(-90 50 50)"
+                    strokeLinecap="round"
+                    className="transition-all duration-1000"
+                  />
+                )}
+                {/* Liability (Yellow) */}
+                {liability > 0 && (
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="35"
+                    fill="transparent"
+                    stroke="#f59e0b"
+                    strokeWidth="10"
+                    strokeDasharray={`${(liability / (totalBS || 1)) * 219.9} ${219.9}`}
+                    strokeDashoffset={`${-((asset / (totalBS || 1)) * 219.9)}`}
+                    transform="rotate(-90 50 50)"
+                    strokeLinecap="round"
+                    className="transition-all duration-1000"
+                  />
+                )}
+                {/* Equity (Blue) */}
+                {equity > 0 && (
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="35"
+                    fill="transparent"
+                    stroke="#3b82f6"
+                    strokeWidth="10"
+                    strokeDasharray={`${(equity / (totalBS || 1)) * 219.9} ${219.9}`}
+                    strokeDashoffset={`${-(((asset + liability) / (totalBS || 1)) * 219.9)}`}
+                    transform="rotate(-90 50 50)"
+                    strokeLinecap="round"
+                    className="transition-all duration-1000"
+                  />
+                )}
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Total BS</span>
+                <span className="text-sm font-extrabold text-white mt-0.5">
+                  {new Intl.NumberFormat("id-ID", { notation: "compact" }).format(totalBS)}
+                </span>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="mt-4 flex gap-4 text-[10px] font-semibold">
+              <span className="flex items-center gap-1.5 text-[#10b981]">
+                <span className="h-2.5 w-2.5 rounded bg-emerald-500" />
+                Asset ({totalBS > 0 ? Math.round((asset / totalBS) * 100) : 0}%)
+              </span>
+              <span className="flex items-center gap-1.5 text-[#f59e0b]">
+                <span className="h-2.5 w-2.5 rounded bg-amber-500" />
+                Liability ({totalBS > 0 ? Math.round((liability / totalBS) * 100) : 0}%)
+              </span>
+              <span className="flex items-center gap-1.5 text-[#3b82f6]">
+                <span className="h-2.5 w-2.5 rounded bg-blue-500" />
+                Equity ({totalBS > 0 ? Math.round((equity / totalBS) * 100) : 0}%)
+              </span>
+            </div>
+          </div>
+
+          {/* Operating Profitability Bars (Col 7) */}
+          <div className="md:col-span-7 space-y-6 p-6 border border-zinc-900 rounded-xl bg-zinc-950/20">
+            <div>
+              <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Operating Performance</h4>
+              <p className="text-[10px] text-zinc-500 mb-4">Perbandingan pendapatan usaha terhadap biaya pengeluaran ledger.</p>
+            </div>
+
+            {/* Profit Margin Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold text-zinc-300">
+                <span>Revenue vs Expense Ratio</span>
+                <span className="text-emerald-400">
+                  {revenue + expense > 0 ? Math.round((revenue / (revenue + expense)) * 100) : 0}% / {revenue + expense > 0 ? Math.round((expense / (revenue + expense)) * 100) : 0}%
+                </span>
+              </div>
+              <div className="h-3.5 w-full rounded-full bg-zinc-900 overflow-hidden flex">
+                <div
+                  style={{ width: `${revenue + expense > 0 ? (revenue / (revenue + expense)) * 100 : 0}%` }}
+                  className="bg-emerald-500 transition-all duration-1000"
+                  title="Revenue"
+                />
+                <div
+                  style={{ width: `${revenue + expense > 0 ? (expense / (revenue + expense)) * 100 : 0}%` }}
+                  className="bg-rose-500 transition-all duration-1000"
+                  title="Expense"
+                />
+              </div>
+            </div>
+
+            {/* Financial indicators */}
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-900/60">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Gross Revenue</span>
+                <p className="text-base font-extrabold text-white mt-0.5">{formatCurrency(revenue)}</p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Total Expense</span>
+                <p className="text-base font-extrabold text-rose-400 mt-0.5">{formatCurrency(expense)}</p>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-zinc-900/40 flex justify-between items-center text-xs">
+              <span className="text-zinc-500 font-medium">Net Profit/Loss Estimate:</span>
+              <span className={`font-bold ${revenue >= expense ? "text-emerald-400" : "text-rose-400"}`}>
+                {revenue >= expense ? "+" : ""}
+                {formatCurrency(revenue - expense)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -217,3 +217,85 @@ export async function toggleUserStatusAction(userId: string, nextActiveState: bo
     return { success: false, error: getErrorMessage(error, "Gagal memperbarui status akun.") };
   }
 }
+
+export async function updateUserProfileAction(data: {
+  name?: string;
+  phone?: string;
+  bio?: string;
+  image?: string;
+  division?: string;
+}) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { success: false, error: "Akses tidak diizinkan. Silakan masuk terlebih dahulu." };
+  }
+
+  const sessionUser = session.user as SessionUser;
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id: sessionUser.id },
+      data: {
+        name: data.name?.trim(),
+        phone: data.phone?.trim() || null,
+        bio: data.bio?.trim() || null,
+        image: data.image?.trim() || null,
+        division: data.division?.trim() || null,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        image: true,
+        phone: true,
+        bio: true,
+        division: true,
+      },
+    });
+
+    await AuditService.log({
+      userId: sessionUser.id,
+      action: "UPDATE_PROFILE",
+      entity: "User",
+      entityId: sessionUser.id,
+      newValue: {
+        name: updatedUser.name,
+        phone: updatedUser.phone,
+        bio: updatedUser.bio,
+        image: updatedUser.image,
+        division: updatedUser.division,
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/profile");
+    revalidatePath("/dashboard/hr");
+
+    return { success: true, data: updatedUser, message: "Profil Anda berhasil diperbarui!" };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error, "Gagal memperbarui profil.") };
+  }
+}
+
+export async function getUserProfileAction(userId: string) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        image: true,
+        phone: true,
+        bio: true,
+        division: true,
+      },
+    });
+    if (!user) return { success: false, error: "Pengguna tidak ditemukan." };
+    return { success: true, data: user };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error, "Gagal memuat profil pengguna.") };
+  }
+}

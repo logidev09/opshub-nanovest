@@ -150,6 +150,14 @@ function LoginForm() {
         <p className="text-[10px] text-zinc-500 text-center mt-3">
           Kata sandi semua akun: <code className="text-zinc-400">password123</code>
         </p>
+        <div className="mt-4 border-t border-zinc-850 pt-3 text-center">
+          <p className="text-xs text-zinc-500">
+            Belum terdaftar?{" "}
+            <Link href="/register" className="text-emerald-400 hover:text-emerald-300 font-semibold transition">
+              Daftar sebagai Employee
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
