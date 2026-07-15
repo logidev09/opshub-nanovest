@@ -88,7 +88,7 @@ async function main() {
   // await prisma.auditLog.deleteMany().catch(() => {});
   // await prisma.leaveRequest.deleteMany().catch(() => {});
   // await prisma.hrBotSession.deleteMany().catch(() => {});
-  // await prisma.hrPolicy.deleteMany().catch(() => {});
+  await prisma.hrPolicy.deleteMany().catch(() => {});
   // await prisma.user.deleteMany().catch(() => {});
 
   const hashedPassword = await bcrypt.hash("password123", 10);
@@ -151,37 +151,37 @@ async function main() {
 
   await seedPolicies([
     {
-      title: "Annual Leave Policy V2.0",
+      title: "Kebijakan Cuti Tahunan RI Juli 2026",
       content:
-        "Employees are entitled to 12 working days of annual leave per calendar year. Annual leave requests should be submitted through OpsHub and approved by HR or the direct manager before the leave start date whenever possible.",
+        "Berdasarkan Peraturan Ketenagakerjaan RI Terbaru Juli 2026, setiap karyawan berhak atas cuti tahunan sekurang-kurangnya 12 (dua belas) hari kerja setelah karyawan yang bersangkutan bekerja selama 12 (dua belas) bulan secara terus menerus. Pengajuan cuti harus diajukan melalui sistem OpsHub Nanovest paling lambat 3 hari sebelum pelaksanaan cuti, dan harus disetujui oleh HR atau Admin sebelum tanggal pelaksanaan cuti tersebut.",
       category: "leave",
       metadata: { tags: ["leave", "annual"], version: "2.0" },
     },
     {
-      title: "Medical and Sick Leave Policy",
+      title: "Kebijakan Cuti Sakit & Surat Dokter RI Juli 2026",
       content:
-        "Employees may request paid sick leave for illness, recovery, medical checkups, or prescribed rest. A doctor's note is recommended for absences longer than 2 consecutive days and must be uploaded within 48 hours after returning to work.",
+        "Karyawan yang sakit berhak mendapatkan cuti sakit berbayar penuh. Apabila cuti sakit melebihi 2 (dua) hari kerja berturut-turut, karyawan wajib menyertakan Surat Keterangan Dokter (SKD) yang sah dari klinik atau rumah sakit dan mengunggahnya ke dalam sistem OpsHub maksimal 48 jam sejak hari pertama masuk kerja kembali. Upah tetap dibayar 100% untuk sakit selama 4 bulan pertama.",
       category: "leave",
       metadata: { tags: ["leave", "sick"], version: "1.2" },
     },
     {
-      title: "Maternity, Paternity, and Family Leave",
+      title: "Kebijakan Cuti Hamil, Melahirkan, & Cuti Ayah Juli 2026",
       content:
-        "Maternity leave is granted for 3 months with statutory compensation. Paternity leave is granted for 5 working days. Additional unpaid family leave may be discussed with HR for urgent family matters.",
+        "Karyawan perempuan berhak memperoleh istirahat selama 1,5 (satu setengah) bulan sebelum saatnya melahirkan dan 1,5 (satu setengah) bulan setelah melahirkan (total 3 bulan) dengan upah penuh 100%. Karyawan laki-laki (suami) berhak atas cuti pendampingan melahirkan (cuti ayah) selama 5 (lima) hari kerja berbayar penuh yang wajib diajukan melalui OpsHub.",
       category: "leave",
       metadata: { tags: ["leave", "family"], version: "1.1" },
     },
     {
-      title: "Payroll and Reimbursement Schedule",
+      title: "Skema Upah Lembur & Payroll Juli 2026",
       content:
-        "Monthly salaries are paid every 25th through the registered bank account. Approved reimbursement claims are paid together with payroll or within the next weekly payment cycle depending on the claim type.",
+        "Penggajian di Nanovest diproses secara terpusat setiap bulan pada tanggal 25. Perhitungan lembur mengikuti ketentuan Ketenagakerjaan Juli 2026: jam lembur pertama dibayar 1.5x upah per jam, dan jam lembur berikutnya dibayar 2x upah per jam. Seluruh klaim lembur wajib divalidasi oleh atasan langsung dan diposting sebelum tanggal 20 agar masuk ke payroll bulan berjalan.",
       category: "payroll",
       metadata: { tags: ["payroll", "reimbursement"], version: "1.4" },
     },
     {
-      title: "Remote Work and Attendance Guidelines",
+      title: "Ketentuan Jam Kerja & Kehadiran Juli 2026",
       content:
-        "Employees who work remotely must maintain attendance logs and remain reachable during agreed working hours. Leave requests and attendance corrections must be recorded through OpsHub to preserve an audit trail.",
+        "Jam kerja standar di Nanovest diatur 40 jam dalam 1 minggu (8 jam per hari untuk 5 hari kerja). Karyawan yang melakukan kerja jarak jauh (WFA) diwajibkan untuk mencatatkan kehadirannya secara digital. Pelanggaran kehadiran tanpa izin tertulis akan dikenakan sanksi bertahap mulai dari SP-1 hingga SP-3 sesuai regulasi terbaru.",
       category: "regulation",
       metadata: { tags: ["attendance", "remote"], version: "1.0" },
     },

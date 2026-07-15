@@ -101,6 +101,7 @@ export default async function QaLabPage() {
           message: item.message,
           status: item.status,
           createdAt: item.createdAt.toISOString(),
+          updatedAt: item.updatedAt.toISOString(),
           submittedBy: item.submittedBy,
         }))}
       />

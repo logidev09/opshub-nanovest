@@ -101,6 +101,7 @@ export default async function SecurityPage() {
           message: item.message,
           status: item.status,
           createdAt: item.createdAt.toISOString(),
+          updatedAt: item.updatedAt.toISOString(),
           submittedBy: item.submittedBy,
         }))}
       />

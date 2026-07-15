@@ -11,6 +11,23 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
+  const sessionUser = session.user as any;
+
+  // Halaman dashboard/overview hanya untuk ADMIN atau employee dengan divisi CX Engineer
+  if (sessionUser.role !== "ADMIN" && sessionUser.division !== "CX Engineer") {
+    if (sessionUser.role === "HR" || sessionUser.division === "HR") {
+      redirect("/dashboard/hr");
+    } else if (sessionUser.division === "Accounting") {
+      redirect("/dashboard/finance");
+    } else if (sessionUser.division === "Quality Assurance") {
+      redirect("/dashboard/qa");
+    } else if (sessionUser.division === "Security Operations & IT Support") {
+      redirect("/dashboard/security");
+    } else {
+      redirect("/dashboard/profile");
+    }
+  }
+
   // Fetch dynamic stats from database
   const [policyCount, pendingLeavesCount, totalAuditLogs, recentLogs, financeAccountCount, journalEntryCount, feedbackOpenCount] = await Promise.all([
     prisma.hrPolicy.count().catch(() => 0),

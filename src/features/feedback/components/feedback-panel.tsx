@@ -14,6 +14,7 @@ interface FeedbackItem {
   message: string;
   status: FeedbackStatus;
   createdAt: string;
+  updatedAt?: string;
   submittedBy: {
     name: string | null;
     email: string;
@@ -30,6 +31,26 @@ function formatCategory(category: FeedbackCategory) {
   return category.replaceAll("_", " ");
 }
 
+function parseFeedbackMessage(fullMessage: string) {
+  const marker = "---ATTACHMENT_START---";
+  if (!fullMessage.includes(marker)) {
+    return { text: fullMessage, attachment: null };
+  }
+  const parts = fullMessage.split(marker);
+  const text = parts[0].trim();
+  const rest = parts[1] || "";
+  const nameMatch = rest.match(/NAME:\s*(.*?)\n/);
+  const dataClean = rest.split("DATA:")[1]?.split("---ATTACHMENT_END---")[0]?.trim() || "";
+  const nameClean = nameMatch ? nameMatch[1].trim() : "Attachment";
+  return {
+    text,
+    attachment: {
+      name: nameClean,
+      data: dataClean
+    }
+  };
+}
+
 export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanelProps) {
   const router = useRouter();
   const [category, setCategory] = useState<FeedbackCategory>("UI_UX");
@@ -38,15 +59,44 @@ export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanel
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [changingId, setChangingId] = useState<string | null>(null);
 
+  // File Upload states
+  const [fileName, setFileName] = useState("");
+  const [fileBase64, setFileBase64] = useState("");
+  const [readingFile, setReadingFile] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setReadingFile(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(",")[1];
+      setFileName(file.name);
+      setFileBase64(base64);
+      setReadingFile(false);
+    };
+    reader.onerror = () => {
+      alert("Gagal membaca file lokal.");
+      setReadingFile(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setStatusMessage(null);
 
+    let finalMessage = message.trim();
+    if (fileName && fileBase64) {
+      finalMessage = `${finalMessage}\n\n---ATTACHMENT_START---\nNAME: ${fileName}\nDATA: ${fileBase64}\n---ATTACHMENT_END---`;
+    }
+
     const result = await submitSystemFeedbackAction({
       module,
       category,
-      message,
+      message: finalMessage,
     });
 
     setIsSubmitting(false);
@@ -59,6 +109,8 @@ export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanel
     }
 
     setMessage("");
+    setFileName("");
+    setFileBase64("");
     setStatusMessage({
       type: "success",
       text: result.message || "Feedback berhasil dikirim.",
@@ -87,12 +139,21 @@ export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanel
     router.refresh();
   };
 
+  const handleDownloadAttachment = (name: string, data: string) => {
+    const downloadLink = document.createElement("a");
+    downloadLink.href = `data:application/octet-stream;base64,${data}`;
+    downloadLink.download = name;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  };
+
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr,1.4fr]">
       <div className="rounded-2xl border border-zinc-900 bg-zinc-900/20 p-6">
         <h3 className="text-base font-bold text-white">Feedback Manual ke Admin</h3>
         <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-          Employee, HR, atau admin dapat mengirim feedback UI/UX, test connection, bug, dan test case manual untuk modul ini.
+          Kirim laporan bug, UI/UX, connection check, atau test case baru beserta file lampiran pendukung.
         </p>
 
         {statusMessage && (
@@ -124,6 +185,7 @@ export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanel
               ))}
             </select>
           </div>
+          
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
               Feedback
@@ -132,13 +194,39 @@ export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanel
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={4}
-              placeholder="Contoh: tambahkan test login invalid, cek koneksi database, dan perbaiki alignment komponen."
+              placeholder="Jelaskan detail feedback Anda..."
               className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-emerald-500"
             />
           </div>
+
+          {/* Attachment Upload Field */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Lampiran File (PNG, JPEG, PDF, DOCX, TXT)
+            </label>
+            <div className="relative flex items-center justify-between border border-zinc-850 rounded-xl bg-zinc-950 px-3.5 py-2">
+              <input
+                type="file"
+                accept=".png,.jpeg,.jpg,.pdf,.docx,.txt"
+                onChange={handleFileChange}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                disabled={readingFile}
+              />
+              <span className="text-xs text-zinc-400 truncate max-w-[200px]">
+                {fileName || "Pilih berkas..."}
+              </span>
+              <button
+                type="button"
+                className="px-3 py-1.5 rounded-lg bg-zinc-800 text-[10px] font-bold text-zinc-300 transition"
+              >
+                {readingFile ? "Membaca..." : "Pilih File"}
+              </button>
+            </div>
+          </div>
+
           <button
             type="submit"
-            disabled={isSubmitting || !message.trim()}
+            disabled={isSubmitting || !message.trim() || readingFile}
             className="w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-black transition hover:opacity-95 disabled:opacity-50"
           >
             {isSubmitting ? "Mengirim..." : "Kirim Feedback"}
@@ -146,7 +234,7 @@ export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanel
         </form>
       </div>
 
-      <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6">
+      <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6 flex flex-col h-[70vh]">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-bold text-white">Inbox Feedback</h3>
           <span className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1 text-xs text-zinc-400">
@@ -154,40 +242,71 @@ export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanel
           </span>
         </div>
 
-        <div className="space-y-3">
+        <div className="flex-1 overflow-y-auto space-y-3 pr-1">
           {feedbackItems.length > 0 ? (
-            feedbackItems.map((item) => (
-              <div key={item.id} className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
-                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-white">{formatCategory(item.category)}</p>
-                    <p className="text-[11px] text-zinc-500">
-                      {item.submittedBy.name || item.submittedBy.email} •{" "}
-                      {new Date(item.createdAt).toLocaleDateString("id-ID")}
-                    </p>
+            feedbackItems.map((item) => {
+              const parsed = parseFeedbackMessage(item.message);
+              return (
+                <div key={item.id} className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
+                  <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-white">{formatCategory(item.category)}</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">
+                        Oleh: {item.submittedBy.name || item.submittedBy.email}
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-400 self-start">
+                      {item.status}
+                    </span>
                   </div>
-                  <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-400">
-                    {item.status}
-                  </span>
-                </div>
-                <p className="text-sm leading-relaxed text-zinc-300">{item.message}</p>
-                {userRole === "ADMIN" && (
-                  <div className="mt-3 flex gap-2">
-                    {(["OPEN", "IN_REVIEW", "RESOLVED"] as FeedbackStatus[]).map((status) => (
+
+                  <p className="text-sm leading-relaxed text-zinc-300">{parsed.text}</p>
+                  
+                  {/* Attachment Box in Inbox */}
+                  {parsed.attachment && (
+                    <div className="mt-3 p-2.5 border border-zinc-900 bg-zinc-950 rounded-xl flex items-center justify-between text-xs">
+                      <span className="text-zinc-400 font-mono truncate max-w-[200px]">
+                        📁 {parsed.attachment.name}
+                      </span>
                       <button
-                        key={status}
                         type="button"
-                        disabled={changingId === item.id}
-                        onClick={() => handleStatusChange(item.id, status)}
-                        className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 transition hover:border-emerald-500/40 hover:text-emerald-300"
+                        onClick={() => handleDownloadAttachment(parsed.attachment!.name, parsed.attachment!.data)}
+                        className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 uppercase transition"
                       >
-                        {changingId === item.id ? "Memproses..." : status}
+                        Unduh
                       </button>
-                    ))}
+                    </div>
+                  )}
+
+                  <div className="mt-3 pt-2 border-t border-zinc-900/60 flex flex-wrap gap-x-4 gap-y-1 text-[9px] text-zinc-600 font-mono">
+                    <span>Diajukan: {new Date(item.createdAt).toLocaleString("id-ID")}</span>
+                    {item.status !== "OPEN" && item.updatedAt && (
+                      <span className="text-emerald-500">Diproses: {new Date(item.updatedAt).toLocaleString("id-ID")}</span>
+                    )}
                   </div>
-                )}
-              </div>
-            ))
+
+                  {userRole === "ADMIN" && (
+                    <div className="mt-3 flex gap-2 pt-2 border-t border-zinc-900/40">
+                      {(["OPEN", "IN_REVIEW", "RESOLVED"] as FeedbackStatus[]).map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          disabled={changingId === item.id}
+                          onClick={() => handleStatusChange(item.id, status)}
+                          className={`rounded-lg border px-3 py-1.5 text-[10px] font-semibold transition active:scale-95 ${
+                            item.status === status
+                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                              : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                          }`}
+                        >
+                          {changingId === item.id ? "Memproses..." : status}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })
           ) : (
             <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950/30 p-6 text-center text-sm text-zinc-500">
               Belum ada feedback masuk untuk modul ini.
