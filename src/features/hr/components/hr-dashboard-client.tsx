@@ -30,6 +30,8 @@ interface LeaveHistoryItem {
   endDate: Date | string;
   userName?: string | null;
   userEmail?: string | null;
+  createdAt: Date | string;
+  approvedAt?: Date | string | null;
 }
 
 interface PendingLeaveItem {
@@ -39,6 +41,8 @@ interface PendingLeaveItem {
   endDate: Date | string;
   reason: string | null;
   userId: string;
+  createdAt: Date | string;
+  approvedAt?: Date | string | null;
   user: {
     name: string | null;
     email: string | null;
