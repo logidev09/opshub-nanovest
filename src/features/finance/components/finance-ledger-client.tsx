@@ -53,6 +53,7 @@ export function FinanceLedgerClient({
   totalDebit,
   totalCredit,
   categoryTotals,
+  userRole,
 }: FinanceLedgerClientProps) {
   const router = useRouter();
   
