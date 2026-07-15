@@ -150,8 +150,8 @@ export async function deleteJournalEntryAction(id: string) {
       oldValue: {
         reference: entry.reference,
         description: entry.description,
-        totalDebit: entry.totalDebit,
-        totalCredit: entry.totalCredit,
+        totalDebit: entry.totalDebit.toNumber(),
+        totalCredit: entry.totalCredit.toNumber(),
       },
     });
 
