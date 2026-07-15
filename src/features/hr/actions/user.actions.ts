@@ -299,3 +299,42 @@ export async function getUserProfileAction(userId: string) {
     return { success: false, error: getErrorMessage(error, "Gagal memuat profil pengguna.") };
   }
 }
+
+export async function updateUserDivisionAction(userId: string, division: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+
+  const sessionUser = session.user as SessionUser;
+  if (sessionUser.role !== "ADMIN") {
+    return { success: false, error: "Hanya admin yang dapat mengubah divisi akun." };
+  }
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { division: division || null },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        division: true,
+      },
+    });
+
+    await AuditService.log({
+      userId: sessionUser.id,
+      action: "UPDATE_USER_DIVISION",
+      entity: "User",
+      entityId: updatedUser.id,
+      newValue: { division: updatedUser.division },
+    });
+
+    revalidatePath("/dashboard/admin");
+    revalidatePath("/dashboard/hr");
+    return { success: true, data: updatedUser };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error, "Gagal mengubah divisi akun.") };
+  }
+}

@@ -8,6 +8,7 @@ import {
   toggleUserStatusAction,
   updateUserPasswordAction,
   updateUserRoleAction,
+  updateUserDivisionAction,
 } from "@/features/hr/actions/user.actions";
 import { exportToCSV } from "@/features/shared/lib/export";
 
@@ -43,6 +44,7 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
   const [createLoading, setCreateLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [roleLoadingId, setRoleLoadingId] = useState<string | null>(null);
+  const [divisionLoadingId, setDivisionLoadingId] = useState<string | null>(null);
   const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
   const [passwordLoadingId, setPasswordLoadingId] = useState<string | null>(null);
   const [passwordDrafts, setPasswordDrafts] = useState<Record<string, string>>({});
@@ -93,6 +95,21 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
     }
 
     setMessage({ type: "success", text: "Role akun berhasil diperbarui." });
+    router.refresh();
+  };
+
+  const handleDivisionChange = async (userId: string, division: string) => {
+    setDivisionLoadingId(userId);
+    setMessage(null);
+    const result = await updateUserDivisionAction(userId, division);
+    setDivisionLoadingId(null);
+
+    if (!result.success) {
+      setMessage({ type: "error", text: result.error || "Gagal mengubah divisi akun." });
+      return;
+    }
+
+    setMessage({ type: "success", text: "Divisi akun berhasil diperbarui." });
     router.refresh();
   };
 
@@ -293,6 +310,7 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
                 <th className="pb-3">Email</th>
                 <th className="pb-3">Password</th>
                 <th className="pb-3">Role</th>
+                <th className="pb-3">Divisi</th>
                 <th className="pb-3">Status</th>
                 <th className="pb-3">Dibuat</th>
                 <th className="pb-3">Aksi</th>
@@ -331,6 +349,21 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
                           {formatRoleLabel(role)}
                         </option>
                       ))}
+                    </select>
+                  </td>
+                  <td className="py-4">
+                    <select
+                      value={account.division || ""}
+                      disabled={divisionLoadingId === account.id}
+                      onChange={(e) => handleDivisionChange(account.id, e.target.value)}
+                      className="rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 outline-none focus:border-emerald-500"
+                    >
+                      <option value="">- Tanpa Divisi -</option>
+                      <option value="Accounting">Accounting</option>
+                      <option value="HR">HR</option>
+                      <option value="QA">QA</option>
+                      <option value="SecOps">SecOps</option>
+                      <option value="CX Engineer">CX Engineer</option>
                     </select>
                   </td>
                   <td className="py-4">

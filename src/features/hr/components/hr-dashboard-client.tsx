@@ -213,6 +213,26 @@ export function HrDashboardClient({
   const startDateRef = useRef<HTMLInputElement>(null);
   const endDateRef = useRef<HTMLInputElement>(null);
 
+  const openStartDatePicker = () => {
+    if (startDateRef.current) {
+      if (typeof startDateRef.current.showPicker === "function") {
+        startDateRef.current.showPicker();
+      } else {
+        startDateRef.current.focus();
+      }
+    }
+  };
+
+  const openEndDatePicker = () => {
+    if (endDateRef.current) {
+      if (typeof endDateRef.current.showPicker === "function") {
+        endDateRef.current.showPicker();
+      } else {
+        endDateRef.current.focus();
+      }
+    }
+  };
+
   // File Upload states for Leave request
   const [fileName, setFileName] = useState("");
   const [fileBase64, setFileBase64] = useState("");
@@ -616,30 +636,46 @@ export function HrDashboardClient({
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
                   Tanggal Mulai
                 </label>
-                <div className="relative">
+                <div className="relative flex items-center">
                   <input
                     ref={startDateRef}
                     type="date"
                     required
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 pl-3 pr-10 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full"
                   />
+                  <button
+                    type="button"
+                    onClick={openStartDatePicker}
+                    className="absolute right-3 text-zinc-500 hover:text-white transition cursor-pointer text-xs"
+                    title="Pilih Tanggal Mulai"
+                  >
+                    📅
+                  </button>
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
                   Tanggal Selesai
                 </label>
-                <div className="relative">
+                <div className="relative flex items-center">
                   <input
                     ref={endDateRef}
                     type="date"
                     required
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 pl-3 pr-10 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full"
                   />
+                  <button
+                    type="button"
+                    onClick={openEndDatePicker}
+                    className="absolute right-3 text-zinc-500 hover:text-white transition cursor-pointer text-xs"
+                    title="Pilih Tanggal Selesai"
+                  >
+                    📅
+                  </button>
                 </div>
               </div>
             </div>

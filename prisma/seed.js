@@ -151,60 +151,60 @@ async function main() {
 
   await seedPolicies([
     {
-      title: "Kebijakan Cuti Tahunan RI Juli 2026",
+      title: "Kebijakan Cuti Tahunan RI Juli 2026 (UU Ketenagakerjaan)",
       content:
-        "Berdasarkan Peraturan Ketenagakerjaan RI Terbaru Juli 2026, setiap karyawan berhak atas cuti tahunan sekurang-kurangnya 12 (dua belas) hari kerja setelah karyawan yang bersangkutan bekerja selama 12 (dua belas) bulan secara terus menerus. Pengajuan cuti harus diajukan melalui sistem OpsHub Nanovest paling lambat 3 hari sebelum pelaksanaan cuti, dan harus disetujui oleh HR atau Admin sebelum tanggal pelaksanaan cuti tersebut.",
+        "Berdasarkan Peraturan Ketenagakerjaan RI Terbaru Juli 2026, setiap karyawan berhak atas cuti tahunan sekurang-kurangnya 12 (dua belas) hari kerja setelah karyawan yang bersangkutan bekerja selama 12 (dua belas) bulan secara terus menerus. Pengajuan cuti harus diajukan melalui sistem OpsHub Nanovest paling lambat 3 hari sebelum pelaksanaan cuti, dan harus disetujui oleh HR atau Admin sebelum tanggal pelaksanaan cuti tersebut. Saldo cuti tahunan hangus jika tidak digunakan dalam kurun waktu 18 bulan sejak hak cuti timbul.",
       category: "leave",
-      metadata: { tags: ["leave", "annual"], version: "2.0" },
+      metadata: { tags: ["leave", "annual", "indonesia-law"], version: "2.1" },
     },
     {
       title: "Kebijakan Cuti Sakit & Surat Dokter RI Juli 2026",
       content:
-        "Karyawan yang sakit berhak mendapatkan cuti sakit berbayar penuh. Apabila cuti sakit melebihi 2 (dua) hari kerja berturut-turut, karyawan wajib menyertakan Surat Keterangan Dokter (SKD) yang sah dari klinik atau rumah sakit dan mengunggahnya ke dalam sistem OpsHub maksimal 48 jam sejak hari pertama masuk kerja kembali. Upah tetap dibayar 100% untuk sakit selama 4 bulan pertama.",
+        "Karyawan yang sakit berhak mendapatkan cuti sakit berbayar penuh. Apabila cuti sakit melebihi 2 (dua) hari kerja berturut-turut, karyawan wajib menyertakan Surat Keterangan Dokter (SKD) atau resep dokter yang sah dan mengunggahnya ke dalam sistem OpsHub maksimal 48 jam sejak hari pertama masuk kerja kembali. Upah tetap dibayar 100% untuk sakit selama 4 bulan pertama, 75% untuk 4 bulan kedua, 50% untuk 4 bulan ketiga, dan 25% untuk bulan berikutnya sebelum dilakukan PHK medis.",
       category: "leave",
-      metadata: { tags: ["leave", "sick"], version: "1.2" },
+      metadata: { tags: ["leave", "sick", "doctor-note"], version: "1.3" },
     },
     {
-      title: "Kebijakan Cuti Hamil, Melahirkan, & Cuti Ayah Juli 2026",
+      title: "Kebijakan Cuti Hamil, Melahirkan, & Cuti Ayah Juli 2026 (UU KIA)",
       content:
-        "Karyawan perempuan berhak memperoleh istirahat selama 1,5 (satu setengah) bulan sebelum saatnya melahirkan dan 1,5 (satu setengah) bulan setelah melahirkan (total 3 bulan) dengan upah penuh 100%. Karyawan laki-laki (suami) berhak atas cuti pendampingan melahirkan (cuti ayah) selama 5 (lima) hari kerja berbayar penuh yang wajib diajukan melalui OpsHub.",
+        "Sesuai UU KIA Ketenagakerjaan Juli 2026, karyawan perempuan berhak memperoleh cuti melahirkan selama 3 (tiga) bulan penuh berbayar upah 100%, yang dapat diperpanjang hingga paling lama 6 (enam) bulan jika terdapat kondisi medis khusus yang dibuktikan dengan surat dokter. Upah untuk bulan ke-4 dibayar 100% dan bulan ke-5 serta ke-6 dibayar 75%. Karyawan laki-laki (suami) berhak atas cuti pendampingan istri melahirkan (cuti ayah) selama 2 (dua) hari kerja berbayar penuh, dan dapat ditambah hingga 3 (tiga) hari kerja berikutnya sesuai kesepakatan.",
       category: "leave",
-      metadata: { tags: ["leave", "family"], version: "1.1" },
+      metadata: { tags: ["leave", "family", "maternity", "paternity"], version: "1.2" },
     },
     {
       title: "Skema Upah Lembur & Payroll Juli 2026",
       content:
-        "Penggajian di Nanovest diproses secara terpusat setiap bulan pada tanggal 25. Perhitungan lembur mengikuti ketentuan Ketenagakerjaan Juli 2026: jam lembur pertama dibayar 1.5x upah per jam, dan jam lembur berikutnya dibayar 2x upah per jam. Seluruh klaim lembur wajib divalidasi oleh atasan langsung dan diposting sebelum tanggal 20 agar masuk ke payroll bulan berjalan.",
+        "Penggajian di Nanovest diproses secara terpusat setiap bulan pada tanggal 25. Perhitungan lembur mengikuti ketentuan Ketenagakerjaan Juli 2026: jam lembur pertama dibayar 1.5x upah per jam, dan jam lembur berikutnya dibayar 2x upah per jam. Pada hari libur resmi, lembur dibayar 2x upah per jam untuk 8 jam pertama, 3x upah per jam untuk jam ke-9, dan 4x upah per jam untuk jam ke-10 dan seterusnya. Seluruh klaim lembur wajib divalidasi oleh atasan langsung dan diposting sebelum tanggal 20.",
       category: "payroll",
-      metadata: { tags: ["payroll", "reimbursement"], version: "1.4" },
+      metadata: { tags: ["payroll", "reimbursement", "overtime"], version: "1.5" },
     },
     {
       title: "Ketentuan Jam Kerja & Kehadiran Juli 2026",
       content:
-        "Jam kerja standar di Nanovest diatur 40 jam dalam 1 minggu (8 jam per hari untuk 5 hari kerja). Karyawan yang melakukan kerja jarak jauh (WFA) diwajibkan untuk mencatatkan kehadirannya secara digital. Pelanggaran kehadiran tanpa izin tertulis akan dikenakan sanksi bertahap mulai dari SP-1 hingga SP-3 sesuai regulasi terbaru.",
+        "Jam kerja standar di Nanovest diatur 40 jam dalam 1 minggu (8 jam per hari untuk 5 hari kerja). Karyawan yang melakukan kerja jarak jauh (WFA) diwajibkan untuk mencatatkan kehadirannya secara digital menggunakan verifikasi lokasi (geofencing). Pelanggaran kehadiran tanpa izin tertulis akan dikenakan sanksi bertahap mulai dari SP-1 (berlaku 6 bulan), SP-2 (berlaku 6 bulan), hingga SP-3 (PHK) sesuai regulasi terbaru.",
       category: "regulation",
-      metadata: { tags: ["attendance", "remote"], version: "1.0" },
+      metadata: { tags: ["attendance", "remote", "warning-letter"], version: "1.1" },
     },
     {
       title: "Pedoman PSAK 72 / IFRS 15 - Pengakuan Pendapatan Juli 2026",
       content:
-        "Berdasarkan standar PSAK 72 dan IFRS 15 terbaru per Juli 2026, pendapatan dari kontrak dengan pelanggan diakui dengan 5 langkah evaluasi: mengidentifikasi kontrak, mengidentifikasi kewajiban kinerja, menentukan harga transaksi, mengalokasikan harga transaksi, dan mengakui pendapatan saat kewajiban kinerja terpenuhi. Segala bentuk rabat atau insentif harus dicatat sebagai pengurang pendapatan usaha secara akurat.",
+        "Berdasarkan standar PSAK 72 dan IFRS 15 terbaru per Juli 2026, pendapatan dari kontrak dengan pelanggan diakui dengan 5 langkah evaluasi: mengidentifikasi kontrak, mengidentifikasi kewajiban kinerja, menentukan harga transaksi, mengalokasikan harga transaksi, dan mengakui pendapatan saat kewajiban kinerja terpenuhi. Segala bentuk rabat, insentif, dan retur harus dicatat sebagai pengurang pendapatan usaha secara akurat di akhir periode buku.",
       category: "finance_psak",
-      metadata: { tags: ["psak", "revenue"], version: "1.0" },
+      metadata: { tags: ["psak", "revenue", "accounting"], version: "1.1" },
     },
     {
       title: "Pedoman Penyajian Laporan Keuangan IFRS 18 Juli 2026",
       content:
-        "Penyajian laporan keuangan per Juli 2026 wajib mengadopsi standar IFRS 18 yang memisahkan laba rugi menjadi tiga kategori utama: Pendapatan Operasi, Investasi, dan Pembiayaan. Hal ini bertujuan untuk memberikan transparansi kesehatan finansial korporasi serta mempermudah analisis margin operasional oleh auditor eksternal.",
+        "Penyajian laporan keuangan per Juli 2026 wajib mengadopsi standar IFRS 18 yang memisahkan laba rugi menjadi tiga kategori utama: Pendapatan Operasi, Investasi, dan Pembiayaan. Hal ini bertujuan untuk memberikan transparansi kesehatan finansial korporasi serta mempermudah analisis margin operasional oleh auditor eksternal. Penyesuaian terhadap aset neto wajib dicatat secara berkala.",
       category: "finance_ifrs",
-      metadata: { tags: ["ifrs", "presentation"], version: "1.0" },
+      metadata: { tags: ["ifrs", "presentation", "financial-statements"], version: "1.1" },
     },
     {
-      title: "Ketentuan Pajak PPN 11% & PPh Badan Juli 2026",
+      title: "Ketentuan Pajak PPN 12% & PPh Badan Juli 2026",
       content:
-        "Ketentuan perpajakan Republik Indonesia per Juli 2026 menetapkan tarif PPN standar sebesar 11%. Untuk PPh Badan ditetapkan tarif 22% dari penghasilan kena pajak. Kewajiban pemotongan PPh Pasal 21 atas upah karyawan dan PPh Pasal 23 atas jasa vendor wajib dicatat dan dilaporkan melalui e-SST paling lambat tanggal 10 bulan berikutnya.",
+        "Ketentuan perpajakan Republik Indonesia per Juli 2026 menetapkan tarif PPN standar sebesar 12% (penyesuaian dari tarif sebelumnya 11%). Untuk PPh Badan ditetapkan tarif tetap 22% dari penghasilan kena pajak. Pajak tangguhan (deferred tax) atas perbedaan temporer wajib diukur menggunakan tarif ini. Pemotongan PPh Pasal 21 atas upah karyawan menggunakan metode TER (Tarif Efektif Rata-rata) PP 58/2023, dan PPh Pasal 23 atas jasa vendor sebesar 2% wajib dicatat dan dilaporkan melalui e-Bupot paling lambat tanggal 10 bulan berikutnya.",
       category: "finance_tax",
-      metadata: { tags: ["tax", "ppn", "pph"], version: "1.0" },
+      metadata: { tags: ["tax", "ppn-12", "pph", "pp58"], version: "1.1" },
     },
   ]);
 

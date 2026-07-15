@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   postJournalEntryAction,
   deleteJournalEntryAction,
   updateJournalEntryAction,
   updateJournalEntryAttachmentAction,
+  generateFinanceInsightsAction,
 } from "@/features/finance/actions/ledger.actions";
 import { exportToCSV } from "@/features/shared/lib/export";
 import { FileViewerModal } from "@/features/shared/components/file-viewer-modal";
@@ -138,7 +139,29 @@ export function FinanceLedgerClient({
   ]);
   const [chatLoading, setChatLoading] = useState(false);
 
+  // Dynamic Insights states
+  const [aiInsights, setAiInsights] = useState<{ companyHealth: string; taxAdvice: string } | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
+
   const dateInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    async function loadInsights() {
+      setLoadingInsights(true);
+      const res = await generateFinanceInsightsAction({
+        netProfit: revenue - expense,
+        totalAsset: asset,
+        totalLiability: liability,
+        totalEquity: equity,
+        revenue,
+      });
+      if (res.success && res.data) {
+        setAiInsights(res.data);
+      }
+      setLoadingInsights(false);
+    }
+    loadInsights();
+  }, [revenue, expense, asset, liability, equity]);
 
   const ledgerAccounts = useMemo(
     () =>
@@ -363,7 +386,7 @@ export function FinanceLedgerClient({
     <div className="space-y-8 relative">
       {/* RAG Documents Manager Navigation */}
       {(userRole === "ADMIN" || userDivision === "Accounting") && (
-        <div className="flex justify-end mb-2">
+        <div className="flex justify-start mb-2">
           <Link
             href="/dashboard/finance/policies"
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 px-4 py-2.5 text-xs font-bold text-black transition active:scale-95 shadow-md shadow-emerald-500/10"
@@ -585,25 +608,43 @@ export function FinanceLedgerClient({
             </div>
           </div>
 
-          {/* AI Tax & Financial Health Insights (Task 2) */}
+          {/* AI Tax & Financial Health Insights (July 2026) */}
           <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider">AI Tax & Financial Health Insights (July 2026)</h4>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider">AI Tax & Financial Health Insights (July 2026)</h4>
+              </div>
+              {loadingInsights && (
+                <span className="text-[10px] text-zinc-500 animate-pulse">Menganalisis RAG perpajakan...</span>
+              )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs leading-relaxed text-zinc-400">
-              <div className="space-y-2 p-3.5 border border-zinc-900 bg-zinc-900/20 rounded-xl">
+              <div className="space-y-2 p-3.5 border border-zinc-900 bg-zinc-900/20 rounded-xl relative overflow-hidden">
                 <span className="font-semibold text-emerald-400 block">Kesehatan Finansial Perusahaan</span>
-                <p>
-                  Status Laba Bersih: <strong className="text-white">{formatCurrency(netProfit)}</strong>.
-                  Struktur keuangan perusahaan dinilai <strong className={isHealthy ? "text-emerald-400" : "text-amber-400"}>{isHealthy ? "SANGAT SEHAT" : "PERLU EVALUASI"}</strong> berdasarkan rasio perbandingan aset terhadap liabilitas dan ekuitas.
-                </p>
+                {loadingInsights ? (
+                  <div className="space-y-2 py-1 animate-pulse">
+                    <div className="h-3 bg-zinc-850 rounded w-3/4"></div>
+                    <div className="h-3 bg-zinc-850 rounded w-5/6"></div>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap">
+                    {aiInsights ? aiInsights.companyHealth : `Status Laba Bersih: ${formatCurrency(netProfit)}. Struktur keuangan perusahaan dinilai ${isHealthy ? "SANGAT SEHAT" : "PERLU EVALUASI"} berdasarkan rasio perbandingan aset terhadap liabilitas dan ekuitas.`}
+                  </p>
+                )}
               </div>
-              <div className="space-y-2 p-3.5 border border-zinc-900 bg-zinc-900/20 rounded-xl">
+              <div className="space-y-2 p-3.5 border border-zinc-900 bg-zinc-900/20 rounded-xl relative overflow-hidden">
                 <span className="font-semibold text-emerald-400 block">Saran Estimasi Kewajiban Pajak</span>
-                <p>
-                  Berdasarkan pendapatan usaha berjalan, estimasi **PPN Terutang (11%)** adalah sebesar <strong className="text-white">{formatCurrency(estimatedPPN)}</strong>. Estimasi **PPh Badan (22%)** dari profit adalah <strong className="text-white">{formatCurrency(estimatedPPh)}</strong>. Pastikan pencatatan pajak tangguhan sudah sesuai PSAK terbaru.
-                </p>
+                {loadingInsights ? (
+                  <div className="space-y-2 py-1 animate-pulse">
+                    <div className="h-3 bg-zinc-850 rounded w-2/3"></div>
+                    <div className="h-3 bg-zinc-850 rounded w-full"></div>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap">
+                    {aiInsights ? aiInsights.taxAdvice : `Berdasarkan pendapatan berjalan, estimasi PPN Terutang (12%) adalah sebesar ${formatCurrency(revenue * 0.12)}. Estimasi PPh Badan (22%) dari profit adalah ${formatCurrency(netProfit > 0 ? netProfit * 0.22 : 0)}. Pastikan pencatatan pajak tangguhan sudah sesuai PSAK terbaru.`}
+                  </p>
+                )}
               </div>
             </div>
           </div>
