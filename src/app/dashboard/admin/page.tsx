@@ -28,6 +28,7 @@ export default async function AdminAccountsPage() {
       role: true,
       isActive: true,
       createdAt: true,
+      image: true,
     },
   });
 

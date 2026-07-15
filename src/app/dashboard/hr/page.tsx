@@ -31,6 +31,7 @@ export default async function HrDashboardPage() {
               select: {
                 name: true,
                 email: true,
+                image: true,
               },
             },
           },
@@ -72,6 +73,7 @@ export default async function HrDashboardPage() {
     user: {
       name: l.user.name,
       email: l.user.email,
+      image: (l.user as any).image || null,
     },
   }));
 

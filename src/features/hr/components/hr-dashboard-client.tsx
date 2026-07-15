@@ -42,6 +42,7 @@ interface PendingLeaveItem {
   user: {
     name: string | null;
     email: string | null;
+    image?: string | null;
   };
 }
 
@@ -254,9 +255,9 @@ export function HrDashboardClient({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
       {/* LEFT COLUMN: HR Chatbot (8 Cols on LG) */}
-      <div className="lg:col-span-7 flex flex-col h-[75vh] border border-zinc-900 bg-zinc-900/10 rounded-2xl overflow-hidden backdrop-blur-xl">
+      <div className="lg:col-span-7 flex flex-col h-[75vh] min-w-0 border border-zinc-900 bg-zinc-900/10 rounded-2xl overflow-hidden backdrop-blur-xl">
         {/* Chat Header */}
         <div className="px-6 py-4 border-b border-zinc-900 bg-zinc-950/40 flex items-center gap-3">
           <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -291,7 +292,7 @@ export function HrDashboardClient({
                 <ChatAvatar role={m.role} image={m.role === "user" ? userImage : null} />
                 <div className={`space-y-1 ${m.role === "user" ? "items-end text-right" : ""}`}>
                   <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${m.role === "user" ? "text-emerald-300" : "text-zinc-500"}`}>
-                    {m.role === "user" ? `${userName} (${userRoleFormatted})` : "HR AI"}
+                    {m.role === "user" ? `${userName} (${userRoleFormatted})` : "HR Copilot"}
                   </p>
                   <div
                     className={`rounded-2xl px-4 py-3 leading-relaxed whitespace-pre-wrap ${
@@ -344,7 +345,11 @@ export function HrDashboardClient({
             <input
               value={input}
               onChange={handleInputChange}
-              placeholder="Tanyakan kebijakan atau ajukan cuti... (mis. 'Saya ingin cuti besok karena kontrol gigi')"
+              placeholder={
+                userRole === "HR" || userRole === "ADMIN"
+                  ? "Tanyakan kebijakan atau ketik perintah (mis. 'Setujui semua cuti')"
+                  : "Tanyakan kebijakan atau ajukan cuti... (mis. 'Saya ingin cuti besok karena kontrol gigi')"
+              }
               className="flex-1 rounded-xl border border-zinc-850 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-emerald-500/80 transition"
             />
             <button
@@ -361,7 +366,7 @@ export function HrDashboardClient({
       </div>
 
       {/* RIGHT COLUMN: Leave Request Form & Leaves list (5 Cols on LG) */}
-      <div className="lg:col-span-5 space-y-6">
+      <div className="lg:col-span-5 space-y-6 min-w-0">
         {/* Admin User Creation */}
         {userRole === "ADMIN" && (
           <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20">
@@ -441,15 +446,8 @@ export function HrDashboardClient({
                     required
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 pl-3 pr-20 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500"
+                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                   />
-                  <button
-                    type="button"
-                    onClick={() => openDatePicker(startDateRef.current)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-zinc-300 transition hover:border-emerald-500/40 hover:text-emerald-300"
-                  >
-                    Kalender
-                  </button>
                 </div>
               </div>
               <div>
@@ -463,15 +461,8 @@ export function HrDashboardClient({
                     required
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 pl-3 pr-20 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500"
+                    className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 outline-none focus:border-emerald-500 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                   />
-                  <button
-                    type="button"
-                    onClick={() => openDatePicker(endDateRef.current)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-zinc-300 transition hover:border-emerald-500/40 hover:text-emerald-300"
-                  >
-                    Kalender
-                  </button>
                 </div>
               </div>
             </div>
@@ -519,9 +510,12 @@ export function HrDashboardClient({
                     <button
                       type="button"
                       onClick={() => openProfileModal(request.userId)}
-                      className="font-bold text-emerald-400 hover:text-emerald-300 transition hover:underline cursor-pointer text-left"
+                      className="flex items-center gap-2 font-bold text-emerald-400 hover:text-emerald-300 transition hover:underline cursor-pointer text-left"
                       title="Lihat Detail Profil Karyawan"
                     >
+                      <span className="h-6 w-6 rounded-full overflow-hidden bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] text-zinc-400 shrink-0 no-underline">
+                        {request.user.image ? <img src={request.user.image} alt={request.user.name || "Avatar"} className="h-full w-full object-cover" /> : request.user.name?.[0]?.toUpperCase()}
+                      </span>
                       {request.user.name}
                     </button>
                     <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">

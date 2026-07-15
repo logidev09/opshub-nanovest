@@ -370,6 +370,76 @@ async function main() {
         { code: "2105", side: "CREDIT", amount: 90000000 },
       ],
     },
+    {
+      reference: "JE-2026-0010",
+      description: "Penerimaan pembayaran pelanggan",
+      entryDate: new Date("2026-04-12"),
+      postedById: admin.id,
+      lines: [
+        { code: "1102", side: "DEBIT", amount: 135000000 },
+        { code: "1104", side: "CREDIT", amount: 135000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0011",
+      description: "Pembayaran gaji bulan April",
+      entryDate: new Date("2026-04-25"),
+      postedById: hr.id,
+      lines: [
+        { code: "5101", side: "DEBIT", amount: 48000000 },
+        { code: "1102", side: "CREDIT", amount: 48000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0012",
+      description: "Pengakuan pendapatan jasa konsultasi",
+      entryDate: new Date("2026-05-15"),
+      postedById: hr.id,
+      lines: [
+        { code: "1104", side: "DEBIT", amount: 180000000 },
+        { code: "4101", side: "CREDIT", amount: 180000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0013",
+      description: "Pembayaran gaji bulan Mei",
+      entryDate: new Date("2026-05-25"),
+      postedById: hr.id,
+      lines: [
+        { code: "5101", side: "DEBIT", amount: 48000000 },
+        { code: "1102", side: "CREDIT", amount: 48000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0014",
+      description: "Pendapatan berlangganan bulanan",
+      entryDate: new Date("2026-06-10"),
+      postedById: admin.id,
+      lines: [
+        { code: "1102", side: "DEBIT", amount: 110000000 },
+        { code: "4102", side: "CREDIT", amount: 110000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0015",
+      description: "Pembayaran gaji bulan Juni",
+      entryDate: new Date("2026-06-25"),
+      postedById: hr.id,
+      lines: [
+        { code: "5101", side: "DEBIT", amount: 48000000 },
+        { code: "1102", side: "CREDIT", amount: 48000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0016",
+      description: "Penerimaan pembayaran pelanggan",
+      entryDate: new Date("2026-07-05"),
+      postedById: admin.id,
+      lines: [
+        { code: "1102", side: "DEBIT", amount: 145000000 },
+        { code: "1104", side: "CREDIT", amount: 145000000 },
+      ],
+    },
   ];
 
   for (const entry of entries) {

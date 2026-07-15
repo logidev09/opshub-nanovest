@@ -17,6 +17,7 @@ interface AccountRow {
   role: Role;
   isActive: boolean;
   createdAt: string;
+  image?: string | null;
 }
 
 interface AdminAccountsClientProps {
@@ -266,7 +267,18 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
             <tbody className="divide-y divide-zinc-900/70">
               {accounts.map((account) => (
                 <tr key={account.id} className="align-top text-zinc-300">
-                  <td className="py-4 font-semibold text-white">{account.name || "Tanpa nama"}</td>
+                  <td className="py-4">
+                    <div className="flex items-center gap-3">
+                      <span className="h-8 w-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs text-zinc-400 font-bold overflow-hidden shrink-0">
+                        {account.image ? (
+                          <img src={account.image} alt={account.name || "Avatar"} className="h-full w-full object-cover" />
+                        ) : (
+                          account.name?.[0]?.toUpperCase() || "U"
+                        )}
+                      </span>
+                      <span className="font-semibold text-white">{account.name || "Tanpa nama"}</span>
+                    </div>
+                  </td>
                   <td className="py-4 font-mono text-xs">{account.email}</td>
                   <td className="py-4">
                     <span className="rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[11px] text-zinc-500">
