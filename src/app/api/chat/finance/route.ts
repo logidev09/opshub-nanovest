@@ -87,7 +87,7 @@ Aturan Respons:
                 model: chatModel,
                 messages: [
                   { role: "system", content: systemInstruction },
-                  ...convertToModelMessages(messages),
+                  ...(await convertToModelMessages(messages)),
                 ],
               });
 
