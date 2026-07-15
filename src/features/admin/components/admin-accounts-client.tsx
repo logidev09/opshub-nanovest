@@ -9,6 +9,7 @@ import {
   updateUserPasswordAction,
   updateUserRoleAction,
 } from "@/features/hr/actions/user.actions";
+import { exportToCSV } from "@/features/shared/lib/export";
 
 interface AccountRow {
   id: string;
@@ -18,6 +19,8 @@ interface AccountRow {
   isActive: boolean;
   createdAt: string;
   image?: string | null;
+  password?: string | null;
+  division?: string | null;
 }
 
 interface AdminAccountsClientProps {
@@ -136,6 +139,28 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
     router.refresh();
   };
 
+  const handleExportAccounts = () => {
+    const headers = [
+      { key: "name", label: "Username" },
+      { key: "email", label: "Email" },
+      { key: "role", label: "Role" },
+      { key: "division", label: "Divisi" },
+      { key: "password", label: "Password (Hash)" },
+      { key: "isActive", label: "Status Aktif" },
+      { key: "createdAt", label: "Tanggal Dibuat" },
+    ];
+    const mappedData = accounts.map((item) => ({
+      name: item.name || "",
+      email: item.email,
+      role: item.role,
+      division: item.division || "-",
+      password: item.password || "(No Hash)",
+      isActive: item.isActive ? "Aktif" : "Non-aktif",
+      createdAt: new Date(item.createdAt).toLocaleString("id-ID"),
+    }));
+    exportToCSV(mappedData, headers, "Laporan_Akun_Admin_Nanovest");
+  };
+
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr,1.8fr]">
@@ -242,12 +267,21 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
       </div>
 
       <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6">
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-white">Daftar Akun</h2>
             <p className="mt-1 text-xs text-zinc-500">
               Tabel ini menampilkan info username, password tersimpan, role, status, dan kontrol admin.
             </p>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={handleExportAccounts}
+              className="px-3 py-1.5 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-xs font-bold text-zinc-300 hover:text-white transition flex items-center gap-1.5"
+            >
+              📥 Export Akun (CSV)
+            </button>
           </div>
         </div>
 

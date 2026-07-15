@@ -302,3 +302,42 @@ Berikan respon Anda hanya dalam format JSON mentah (raw JSON) berikut:
     return { success: false, error: "Gagal memproses dokumen dengan Groq LLM." };
   }
 }
+
+export async function updatePolicyAttachmentAction(policyId: string, newText: string) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+
+  const sessionUser = session.user as SessionUser;
+  if (sessionUser.role !== "HR" && sessionUser.role !== "ADMIN") {
+    return { success: false, error: "Akses ditolak." };
+  }
+
+  try {
+    const policy = await prisma.hrPolicy.findUnique({ where: { id: policyId } });
+    if (!policy) {
+      return { success: false, error: "Dokumen tidak ditemukan." };
+    }
+
+    const currentMetadata = (policy.metadata as any) || {};
+    const newBase64 = Buffer.from(newText, "utf-8").toString("base64");
+
+    const updated = await prisma.hrPolicy.update({
+      where: { id: policyId },
+      data: {
+        metadata: {
+          ...currentMetadata,
+          attachmentData: newBase64,
+          editedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    revalidatePath("/dashboard/hr");
+    revalidatePath("/dashboard/hr/policies");
+    return { success: true, data: JSON.parse(JSON.stringify(updated)) };
+  } catch (error: any) {
+    return { success: false, error: "Gagal memperbarui berkas." };
+  }
+}

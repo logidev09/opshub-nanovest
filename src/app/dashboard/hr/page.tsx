@@ -15,6 +15,24 @@ type SessionUser = {
   image?: string | null;
 };
 
+function parseLeaveAttachment(reasonStr: string | null) {
+  const marker = "---ATTACHMENT_START---";
+  if (!reasonStr || !reasonStr.includes(marker)) {
+    return { text: reasonStr || "", attachmentName: null, attachmentData: null };
+  }
+  const parts = reasonStr.split(marker);
+  const text = parts[0].trim();
+  const rest = parts[1] || "";
+  const nameMatch = rest.match(/NAME:\s*(.*?)\n/);
+  const dataClean = rest.split("DATA:")[1]?.split("---ATTACHMENT_END---")[0]?.trim() || "";
+  const nameClean = nameMatch ? nameMatch[1].trim() : "Attachment";
+  return {
+    text,
+    attachmentName: nameClean,
+    attachmentData: dataClean,
+  };
+}
+
 export default async function HrDashboardPage() {
   const session = await getServerSession(authOptions);
 
@@ -29,22 +47,29 @@ export default async function HrDashboardPage() {
   const leaveBalance = await HrRepository.getLeaveBalance(userId);
 
   const pendingLeavesRaw = await HrRepository.getLeaveRequestsPending();
-  const pendingLeavesSerialized = pendingLeavesRaw.map((l) => ({
-    id: l.id,
-    type: l.type,
-    startDate: l.startDate.toISOString(),
-    endDate: l.endDate.toISOString(),
-    reason: l.reason,
-    status: l.status,
-    userId: l.userId,
-    createdAt: l.createdAt.toISOString(),
-    approvedAt: l.approvedAt ? l.approvedAt.toISOString() : null,
-    user: {
-      name: l.user.name,
-      email: l.user.email,
-      image: (l.user as any).image || null,
-    },
-  }));
+  const pendingLeavesSerialized = pendingLeavesRaw.map((l) => {
+    const parsed = parseLeaveAttachment(l.reason);
+    return {
+      id: l.id,
+      type: l.type,
+      startDate: l.startDate.toISOString(),
+      endDate: l.endDate.toISOString(),
+      reason: parsed.text,
+      status: l.status,
+      userId: l.userId,
+      createdAt: l.createdAt.toISOString(),
+      approvedAt: l.approvedAt ? l.approvedAt.toISOString() : null,
+      metadata: {
+        attachmentName: parsed.attachmentName,
+        attachmentData: parsed.attachmentData,
+      },
+      user: {
+        name: l.user.name,
+        email: l.user.email,
+        image: (l.user as any).image || null,
+      },
+    };
+  });
 
   const allLeavesRaw =
     userRole === "ADMIN" || userRole === "HR"
@@ -57,17 +82,43 @@ export default async function HrDashboardPage() {
         })
       : await HrRepository.getLeaveRequestsByUserId(userId);
 
-  const allLeavesSerialized = allLeavesRaw.map((l) => ({
-    id: l.id,
-    type: l.type,
-    startDate: l.startDate.toISOString(),
-    endDate: l.endDate.toISOString(),
-    reason: l.reason,
-    status: l.status,
-    userId: l.userId,
-    createdAt: l.createdAt.toISOString(),
-    approvedAt: l.approvedAt ? l.approvedAt.toISOString() : null,
-    userName: "user" in l ? (l as any).user.name : sessionUser.name,
+  const allLeavesSerialized = allLeavesRaw.map((l) => {
+    const parsed = parseLeaveAttachment(l.reason);
+    return {
+      id: l.id,
+      type: l.type,
+      startDate: l.startDate.toISOString(),
+      endDate: l.endDate.toISOString(),
+      reason: parsed.text,
+      status: l.status,
+      userId: l.userId,
+      createdAt: l.createdAt.toISOString(),
+      approvedAt: l.approvedAt ? l.approvedAt.toISOString() : null,
+      userName: "user" in l ? (l as any).user.name : sessionUser.name,
+      metadata: {
+        attachmentName: parsed.attachmentName,
+        attachmentData: parsed.attachmentData,
+      },
+    };
+  });
+
+  const employeesRaw = await prisma.user.findMany({
+    select: {
+      name: true,
+      email: true,
+      division: true,
+      role: true,
+      phone: true,
+      isActive: true,
+      createdAt: true,
+      image: true,
+    },
+    orderBy: { name: "asc" },
+  });
+
+  const employeesSerialized = employeesRaw.map((emp) => ({
+    ...emp,
+    createdAt: emp.createdAt.toISOString(),
   }));
 
   return (
@@ -106,6 +157,7 @@ export default async function HrDashboardPage() {
         initialBalance={leaveBalance}
         initialMyLeaves={allLeavesSerialized}
         initialPendingLeaves={pendingLeavesSerialized}
+        initialEmployees={employeesSerialized}
       />
     </div>
   );

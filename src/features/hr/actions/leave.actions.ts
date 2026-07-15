@@ -22,6 +22,8 @@ export async function submitLeaveAction(data: {
   startDate: string;
   endDate: string;
   reason?: string;
+  attachmentName?: string;
+  attachmentData?: string;
 }) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {
@@ -107,5 +109,51 @@ export async function cancelLeaveAction(leaveId: string) {
     return { success: true, data: JSON.parse(JSON.stringify(result)) };
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error, "Gagal membatalkan pengajuan cuti.") };
+  }
+}
+
+export async function updateLeaveAttachmentAction(leaveId: string, newText: string) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+
+  const user = session.user as SessionUser;
+  try {
+    const leave = await prisma.leaveRequest.findUnique({ where: { id: leaveId } });
+    if (!leave) {
+      return { success: false, error: "Pengajuan cuti tidak ditemukan." };
+    }
+
+    if (leave.userId !== user.id && user.role !== "ADMIN" && user.role !== "HR") {
+      return { success: false, error: "Anda tidak memiliki wewenang untuk mengubah berkas ini." };
+    }
+
+    const reasonStr = leave.reason || "";
+    const marker = "---ATTACHMENT_START---";
+    if (!reasonStr.includes(marker)) {
+      return { success: false, error: "Pengajuan ini tidak memiliki lampiran berkas." };
+    }
+
+    const parts = reasonStr.split(marker);
+    const mainReason = parts[0].trim();
+    const rest = parts[1] || "";
+    const nameMatch = rest.match(/NAME:\s*(.*?)\n/);
+    const nameClean = nameMatch ? nameMatch[1].trim() : "document.txt";
+    const newBase64 = Buffer.from(newText, "utf-8").toString("base64");
+
+    const newReason = `${mainReason}\n\n${marker}\nNAME: ${nameClean}\nDATA: ${newBase64}\n---ATTACHMENT_END---`;
+
+    const updated = await prisma.leaveRequest.update({
+      where: { id: leaveId },
+      data: {
+        reason: newReason,
+      },
+    });
+
+    revalidatePath("/dashboard/hr");
+    return { success: true, data: JSON.parse(JSON.stringify(updated)) };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error, "Gagal memperbarui berkas.") };
   }
 }

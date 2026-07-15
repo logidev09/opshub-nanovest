@@ -9,7 +9,9 @@ import {
   createFinancePolicyAction,
   deleteFinancePolicyAction,
   extractFinanceDocumentTextAction,
+  updateFinancePolicyAttachmentAction,
 } from "@/features/finance/actions/policy.actions";
+import { FileViewerModal } from "@/features/shared/components/file-viewer-modal";
 
 interface Policy {
   id: string;
@@ -26,6 +28,13 @@ export default function FinancePoliciesPage() {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
   const [isCreateMode, setIsCreateMode] = useState(false);
+
+  const [activeViewerFile, setActiveViewerFile] = useState<{
+    name: string;
+    data: string;
+    policyId: string;
+    editedAt?: string | null;
+  } | null>(null);
   
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -406,10 +415,18 @@ export default function FinancePoliciesPage() {
                     {(selectedPolicy.metadata as any)?.attachmentData && (
                       <button
                         type="button"
-                        onClick={() => handleDownloadAttachment(selectedPolicy)}
+                        onClick={() => {
+                          const metadata = selectedPolicy.metadata as any;
+                          setActiveViewerFile({
+                            name: metadata.attachmentName,
+                            data: metadata.attachmentData,
+                            policyId: selectedPolicy.id,
+                            editedAt: metadata.editedAt || null,
+                          });
+                        }}
                         className="px-4 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-300 font-semibold hover:border-zinc-700 transition active:scale-[0.98] text-xs"
                       >
-                        Unduh Berkas
+                        Buka Berkas
                       </button>
                     )}
                     <button
@@ -434,6 +451,28 @@ export default function FinancePoliciesPage() {
           </form>
         </div>
       </div>
+
+      {/* File Viewer Modal (Task 6) */}
+      {activeViewerFile && (
+        <FileViewerModal
+          fileName={activeViewerFile.name}
+          fileData={activeViewerFile.data}
+          editedAt={activeViewerFile.editedAt}
+          onClose={() => setActiveViewerFile(null)}
+          onSaveText={async (newText) => {
+            const res = await updateFinancePolicyAttachmentAction(activeViewerFile.policyId, newText);
+            if (res.success && res.data) {
+              setActiveViewerFile(prev => prev ? {
+                ...prev,
+                data: Buffer.from(newText, "utf-8").toString("base64"),
+                editedAt: (res.data as any).metadata.editedAt
+              } : null);
+              await loadPolicies(activeViewerFile.policyId);
+            }
+            return res;
+          }}
+        />
+      )}
     </div>
   );
 }

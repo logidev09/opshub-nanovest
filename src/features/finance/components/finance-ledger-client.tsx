@@ -7,7 +7,10 @@ import {
   postJournalEntryAction,
   deleteJournalEntryAction,
   updateJournalEntryAction,
+  updateJournalEntryAttachmentAction,
 } from "@/features/finance/actions/ledger.actions";
+import { exportToCSV } from "@/features/shared/lib/export";
+import { FileViewerModal } from "@/features/shared/components/file-viewer-modal";
 
 interface LedgerAccountView {
   id: string;
@@ -95,11 +98,20 @@ export function FinanceLedgerClient({
   // New Journal Entry Form States
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
+  const [note, setNote] = useState(""); // Catatan Opsional (Task 4)
   const [debitAccountId, setDebitAccountId] = useState(accounts[0]?.id ?? "");
   const [creditAccountId, setCreditAccountId] = useState(accounts[1]?.id ?? accounts[0]?.id ?? "");
   const [amount, setAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Active File Viewer Modal state
+  const [activeViewerFile, setActiveViewerFile] = useState<{
+    name: string;
+    data: string;
+    entryId?: string;
+    editedAt?: string | null;
+  } | null>(null);
   
   // File upload for new entry
   const [fileName, setFileName] = useState("");
@@ -170,13 +182,27 @@ export function FinanceLedgerClient({
     reader.readAsDataURL(file);
   };
 
+  const handleExportLedger = () => {
+    const headers = [
+      { key: "code", label: "Kode Akun" },
+      { key: "name", label: "Nama Akun" },
+      { key: "categoryLabel", label: "Kategori" },
+      { key: "debit", label: "Debit" },
+      { key: "credit", label: "Kredit" },
+      { key: "balance", label: "Saldo" },
+    ];
+    exportToCSV(ledgerAccounts, headers, "Laporan_Trial_Balance_Nanovest");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
 
+    const finalDesc = description.trim() + (note.trim() ? ` | Catatan: ${note.trim()}` : "");
+
     const result = await postJournalEntryAction({
-      description,
+      description: finalDesc,
       entryDate,
       debitAccountId,
       creditAccountId,
@@ -189,6 +215,7 @@ export function FinanceLedgerClient({
     if (result.success) {
       setMessage({ type: "success", text: result.message || "Jurnal berhasil diposting." });
       setDescription("");
+      setNote("");
       setAmount("");
       setFileName("");
       setFileBase64("");
@@ -502,7 +529,16 @@ export function FinanceLedgerClient({
         <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6 lg:col-span-2 space-y-6">
           <div>
             <div className="mb-4 flex items-center justify-between gap-4">
-              <h3 className="text-base font-bold text-white">General Ledger Summary</h3>
+              <div className="flex items-center gap-3">
+                <h3 className="text-base font-bold text-white">General Ledger Summary</h3>
+                <button
+                  type="button"
+                  onClick={handleExportLedger}
+                  className="px-2.5 py-1.5 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-[10px] font-bold text-zinc-300 hover:text-white transition"
+                >
+                  📥 Export Ledger (CSV)
+                </button>
+              </div>
               <span
                 className={`rounded-lg px-3 py-1 text-xs font-semibold ${
                   totalDebit === totalCredit
@@ -667,15 +703,27 @@ export function FinanceLedgerClient({
                 />
               </div>
 
-              {/* Optional Attachment Upload Field (Task 3) */}
               <div>
                 <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Lampiran Berkas Bukti (PDF, PNG, JPEG, JPG, DOCX - Opsional)
+                  Catatan Opsional (Catatan / Memo)
+                </label>
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Catatan tambahan (mis. Memo khusus)"
+                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
+                />
+              </div>
+
+              {/* Optional Attachment Upload Field (Task 4) */}
+              <div>
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                  Lampiran Berkas Bukti (PDF, PNG, JPEG, JPG, DOCX, TXT - Opsional)
                 </label>
                 <div className="relative flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 px-3 py-2 text-xs">
                   <input
                     type="file"
-                    accept=".pdf,.png,.jpeg,.jpg,.docx"
+                    accept=".pdf,.png,.jpeg,.jpg,.docx,.txt"
                     onChange={(e) => handleFileChange(e)}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full"
                     disabled={readingFile}
@@ -753,10 +801,16 @@ export function FinanceLedgerClient({
                           </span>
                           <button
                             type="button"
-                            onClick={() => handleDownloadAttachment(parsed.attachment!.name, parsed.attachment!.data)}
+                            onClick={() => {
+                              setActiveViewerFile({
+                                name: parsed.attachment!.name,
+                                data: parsed.attachment!.data,
+                                entryId: entry.id,
+                              });
+                            }}
                             className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase transition"
                           >
-                            Unduh
+                            Lihat Berkas
                           </button>
                         </div>
                       )}
@@ -853,7 +907,7 @@ export function FinanceLedgerClient({
 
         <button
           onClick={() => setIsChatOpen(!isChatOpen)}
-          className="h-14 w-14 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center text-black font-bold text-xl shadow-xl hover:scale-105 active:scale-95 transition"
+          className="h-16 w-16 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center text-black font-bold text-2xl shadow-xl hover:scale-105 active:scale-95 transition"
           title="Tanya Finance AI"
         >
           💬
@@ -945,6 +999,28 @@ export function FinanceLedgerClient({
             </form>
           </div>
         </div>
+      )}
+
+      {/* File Viewer Modal (Task 6) */}
+      {activeViewerFile && (
+        <FileViewerModal
+          fileName={activeViewerFile.name}
+          fileData={activeViewerFile.data}
+          editedAt={activeViewerFile.editedAt}
+          onClose={() => setActiveViewerFile(null)}
+          onSaveText={async (newText) => {
+            const res = await updateJournalEntryAttachmentAction(activeViewerFile.entryId!, newText);
+            if (res.success && res.data) {
+              setActiveViewerFile(prev => prev ? {
+                ...prev,
+                data: Buffer.from(newText, "utf-8").toString("base64"),
+                editedAt: (res.data as any).metadata?.editedAt || null
+              } : null);
+              router.refresh();
+            }
+            return res;
+          }}
+        />
       )}
     </div>
   );

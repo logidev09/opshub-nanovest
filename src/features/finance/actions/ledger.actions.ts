@@ -237,3 +237,44 @@ export async function updateJournalEntryAction(
     return { success: false, error: getErrorMessage(error, "Gagal memperbarui jurnal entry.") };
   }
 }
+
+export async function updateJournalEntryAttachmentAction(entryId: string, newText: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+
+  try {
+    const entry = await prisma.journalEntry.findUnique({ where: { id: entryId } });
+    if (!entry) {
+      return { success: false, error: "Jurnal entry tidak ditemukan." };
+    }
+
+    const marker = "---ATTACHMENT_START---";
+    if (!entry.description.includes(marker)) {
+      return { success: false, error: "Jurnal ini tidak memiliki lampiran berkas." };
+    }
+
+    const parts = entry.description.split(marker);
+    const mainDesc = parts[0].trim();
+    const rest = parts[1] || "";
+    const nameMatch = rest.match(/NAME:\s*(.*?)\n/);
+    const nameClean = nameMatch ? nameMatch[1].trim() : "document.txt";
+    const newBase64 = Buffer.from(newText, "utf-8").toString("base64");
+
+    const newDescription = `${mainDesc}\n\n${marker}\nNAME: ${nameClean}\nDATA: ${newBase64}\n---ATTACHMENT_END---`;
+
+    const updated = await prisma.journalEntry.update({
+      where: { id: entryId },
+      data: {
+        description: newDescription,
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/finance");
+    return { success: true, data: JSON.parse(JSON.stringify(updated)) };
+  } catch (error: any) {
+    return { success: false, error: "Gagal memperbarui berkas." };
+  }
+}

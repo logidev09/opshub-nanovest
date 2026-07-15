@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { useSession } from "next-auth/react";
-import { submitLeaveAction, reviewLeaveAction, cancelLeaveAction } from "@/features/hr/actions/leave.actions";
+import { submitLeaveAction, reviewLeaveAction, cancelLeaveAction, updateLeaveAttachmentAction } from "@/features/hr/actions/leave.actions";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import type { UIMessage } from "ai";
+import { exportToCSV } from "@/features/shared/lib/export";
+import { FileViewerModal } from "@/features/shared/components/file-viewer-modal";
 
 interface HrDashboardClientProps {
   userId: string;
@@ -15,6 +17,7 @@ interface HrDashboardClientProps {
   initialBalance: number;
   initialMyLeaves: LeaveHistoryItem[];
   initialPendingLeaves: PendingLeaveItem[];
+  initialEmployees?: any[];
 }
 
 interface ChatAlert {
@@ -32,6 +35,7 @@ interface LeaveHistoryItem {
   userEmail?: string | null;
   createdAt: Date | string;
   approvedAt?: Date | string | null;
+  metadata?: any;
 }
 
 interface PendingLeaveItem {
@@ -43,6 +47,7 @@ interface PendingLeaveItem {
   userId: string;
   createdAt: Date | string;
   approvedAt?: Date | string | null;
+  metadata?: any;
   user: {
     name: string | null;
     email: string | null;
@@ -111,6 +116,7 @@ export function HrDashboardClient({
   initialBalance,
   initialMyLeaves,
   initialPendingLeaves,
+  initialEmployees = [],
 }: HrDashboardClientProps & { userId: string }) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -207,6 +213,77 @@ export function HrDashboardClient({
   const startDateRef = useRef<HTMLInputElement>(null);
   const endDateRef = useRef<HTMLInputElement>(null);
 
+  // File Upload states for Leave request
+  const [fileName, setFileName] = useState("");
+  const [fileBase64, setFileBase64] = useState("");
+  const [readingFile, setReadingFile] = useState(false);
+
+  // Active File Viewer Modal state
+  const [activeViewerFile, setActiveViewerFile] = useState<{
+    name: string;
+    data: string;
+    leaveId?: string;
+    editedAt?: string | null;
+  } | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setReadingFile(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(",")[1];
+      setFileName(file.name);
+      setFileBase64(base64);
+      setReadingFile(false);
+    };
+    reader.onerror = () => {
+      alert("Gagal membaca berkas.");
+      setReadingFile(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleExportCuti = () => {
+    const headers = [
+      { key: "userName", label: "Nama Karyawan" },
+      { key: "type", label: "Jenis Cuti" },
+      { key: "status", label: "Status" },
+      { key: "startDate", label: "Tanggal Mulai" },
+      { key: "endDate", label: "Tanggal Selesai" },
+      { key: "createdAt", label: "Diajukan Pada" },
+      { key: "approvedAt", label: "Diproses Pada" },
+    ];
+    // Map dates to localized readable strings for CSV
+    const mappedData = initialMyLeaves.map(l => ({
+      ...l,
+      startDate: new Date(l.startDate).toLocaleDateString("id-ID"),
+      endDate: new Date(l.endDate).toLocaleDateString("id-ID"),
+      createdAt: new Date(l.createdAt).toLocaleString("id-ID"),
+      approvedAt: l.approvedAt ? new Date(l.approvedAt).toLocaleString("id-ID") : "-",
+    }));
+    exportToCSV(mappedData, headers, "Laporan_Cuti_Karyawan");
+  };
+
+  const handleExportKaryawan = () => {
+    const headers = [
+      { key: "name", label: "Nama Lengkap" },
+      { key: "email", label: "Alamat Email" },
+      { key: "division", label: "Divisi" },
+      { key: "role", label: "Wewenang (Role)" },
+      { key: "phone", label: "Nomor HP" },
+      { key: "isActive", label: "Status Aktif" },
+      { key: "createdAt", label: "Terdaftar Sejak" },
+    ];
+    const mappedData = initialEmployees.map(emp => ({
+      ...emp,
+      isActive: emp.isActive ? "Aktif" : "Nonaktif",
+      createdAt: new Date(emp.createdAt).toLocaleDateString("id-ID"),
+    }));
+    exportToCSV(mappedData, headers, "Data_Karyawan_Nanovest");
+  };
+
   // Review State
   const [reviewLoading, setReviewLoading] = useState<string | null>(null);
 
@@ -221,6 +298,8 @@ export function HrDashboardClient({
       startDate,
       endDate,
       reason,
+      attachmentName: fileName || undefined,
+      attachmentData: fileBase64 || undefined,
     });
 
     setFormLoading(false);
@@ -229,6 +308,8 @@ export function HrDashboardClient({
       setStartDate("");
       setEndDate("");
       setReason("");
+      setFileName("");
+      setFileBase64("");
       router.refresh(); // Triggers Server Component to fetch new DB lists
     } else {
       setFormMessage({ type: "error", text: res.error || "Gagal mengirim pengajuan cuti." });
@@ -576,9 +657,34 @@ export function HrDashboardClient({
               />
             </div>
 
+            {/* Optional attachment upload */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
+                Dokumen Tambahan (PDF, PNG, JPEG, JPG, DOCX - Opsional)
+              </label>
+              <div className="relative flex items-center justify-between border border-zinc-850 rounded-xl bg-zinc-950 px-3.5 py-2 text-xs">
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpeg,.jpg,.docx"
+                  onChange={handleFileChange}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                  disabled={readingFile}
+                />
+                <span className="text-zinc-400 truncate max-w-[200px]">
+                  {fileName || "Pilih dokumen..."}
+                </span>
+                <button
+                  type="button"
+                  className="px-2.5 py-1 rounded bg-zinc-850 text-[10px] font-bold text-zinc-300"
+                >
+                  Pilih File
+                </button>
+              </div>
+            </div>
+
             <button
               type="submit"
-              disabled={formLoading || !startDate || !endDate}
+              disabled={formLoading || readingFile || !startDate || !endDate}
               className="w-full rounded-xl bg-emerald-500 py-3 text-xs font-semibold text-black hover:opacity-95 disabled:opacity-50 transition active:scale-[0.98]"
             >
               {formLoading ? "Mengirim..." : "Kirim Pengajuan Cuti"}
@@ -621,7 +727,33 @@ export function HrDashboardClient({
                   <p className="text-zinc-400 mb-2">
                     Tanggal: {new Date(request.startDate).toLocaleDateString("id-ID")} sampai {new Date(request.endDate).toLocaleDateString("id-ID")}
                   </p>
-                  {request.reason && <p className="text-zinc-500 italic mb-3">&quot;{request.reason}&quot;</p>}
+                  {request.reason && <p className="text-zinc-500 italic mb-2">&quot;{request.reason}&quot;</p>}
+                  {(() => {
+                    const meta = request.metadata as any;
+                    const hasAttach = meta && meta.attachmentName && meta.attachmentData;
+                    if (!hasAttach) return null;
+                    return (
+                      <div className="mb-3 p-1.5 rounded border border-zinc-900 bg-zinc-950/40 flex items-center justify-between gap-3">
+                        <span className="font-mono text-[9px] text-zinc-500 truncate max-w-[130px]">
+                          📁 {meta.attachmentName}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveViewerFile({
+                              name: meta.attachmentName,
+                              data: meta.attachmentData,
+                              leaveId: request.id,
+                              editedAt: meta.editedAt || null,
+                            });
+                          }}
+                          className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase shrink-0"
+                        >
+                          Lihat Berkas
+                        </button>
+                      </div>
+                    );
+                  })()}
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleLeaveReview(request.id, LeaveStatus.APPROVED)}
@@ -646,9 +778,29 @@ export function HrDashboardClient({
 
         {/* My Leaves List / All Leaves List */}
         <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/10">
-          <h3 className="text-base font-bold text-white mb-4">
-            {userRole === "HR" || userRole === "ADMIN" ? "Riwayat Cuti Seluruh Karyawan" : "Riwayat Cuti Saya"}
-          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h3 className="text-base font-bold text-white">
+              {userRole === "HR" || userRole === "ADMIN" ? "Riwayat Cuti Seluruh Karyawan" : "Riwayat Cuti Saya"}
+            </h3>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleExportCuti}
+                className="px-2.5 py-1.5 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-[10px] font-bold text-zinc-300 hover:text-white transition"
+              >
+                📥 Export Cuti (CSV)
+              </button>
+              {(userRole === "HR" || userRole === "ADMIN") && (
+                <button
+                  type="button"
+                  onClick={handleExportKaryawan}
+                  className="px-2.5 py-1.5 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-[10px] font-bold text-zinc-300 hover:text-white transition"
+                >
+                  📥 Export Karyawan (CSV)
+                </button>
+              )}
+            </div>
+          </div>
           <div className="space-y-3 max-h-[250px] overflow-y-auto">
             {initialMyLeaves.length > 0 ? (
               initialMyLeaves.map((leave) => {
@@ -673,6 +825,32 @@ export function HrDashboardClient({
                             Diajukan: {new Date(leave.createdAt).toLocaleDateString("id-ID")}{" "}
                             {leave.approvedAt && `| Diproses: ${new Date(leave.approvedAt).toLocaleDateString("id-ID")}`}
                           </div>
+                          {(() => {
+                            const meta = leave.metadata as any;
+                            const hasAttach = meta && meta.attachmentName && meta.attachmentData;
+                            if (!hasAttach) return null;
+                            return (
+                              <div className="mt-2.5 p-1.5 rounded border border-zinc-900 bg-zinc-950/40 flex items-center justify-between gap-3">
+                                <span className="font-mono text-[9px] text-zinc-500 truncate max-w-[150px]">
+                                  📁 {meta.attachmentName}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveViewerFile({
+                                      name: meta.attachmentName,
+                                      data: meta.attachmentData,
+                                      leaveId: leave.id,
+                                      editedAt: meta.editedAt || null,
+                                    });
+                                  }}
+                                  className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase shrink-0"
+                                >
+                                  Lihat Berkas
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           <span className={`px-2.5 py-0.5 rounded-full font-semibold border text-[10px] ${badgeClass}`}>
@@ -769,85 +947,27 @@ export function HrDashboardClient({
         </div>
       )}
 
-      {/* Floating Chat Widget for HR Copilot (Task 4 & 6) */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
-        {isFloatingChatOpen && (
-          <div className="mb-4 w-80 md:w-96 h-[480px] rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl">
-            {/* Header */}
-            <div className="px-4 py-3 bg-zinc-900/60 border-b border-zinc-900 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs font-bold text-white uppercase tracking-wider">HR AI Assistant</span>
-              </div>
-              <button
-                onClick={() => setIsFloatingChatOpen(false)}
-                className="text-zinc-400 hover:text-white transition text-xs"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Message Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs text-left">
-              {floatingChatMessages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex flex-col max-w-[85%] ${
-                    msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start"
-                  }`}
-                >
-                  <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold mb-1">
-                    {msg.role === "user" ? "Anda" : "HR AI"}
-                  </span>
-                  <div
-                    className={`rounded-2xl px-3.5 py-2.5 leading-relaxed whitespace-pre-wrap ${
-                      msg.role === "user"
-                        ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
-                        : "bg-zinc-900/80 text-zinc-300 border border-zinc-900"
-                    }`}
-                  >
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-
-              {floatingChatLoading && (
-                <div className="flex gap-2 items-center text-zinc-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:0.2s]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:0.4s]" />
-                  <span className="text-[10px]">AI sedang mengetik...</span>
-                </div>
-              )}
-            </div>
-
-            {/* Input Form */}
-            <form onSubmit={handleFloatingChatSend} className="p-3 border-t border-zinc-900 bg-zinc-950/40 flex gap-2">
-              <input
-                value={floatingChatInput}
-                onChange={(e) => setFloatingChatInput(e.target.value)}
-                placeholder="Tanyakan kebijakan cuti, aturan, dll..."
-                className="flex-1 rounded-xl border border-zinc-850 bg-zinc-900 px-3.5 py-2 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
-              />
-              <button
-                type="submit"
-                disabled={!floatingChatInput.trim() || floatingChatLoading}
-                className="px-3 rounded-xl bg-emerald-500 text-black hover:opacity-95 disabled:opacity-50 font-bold"
-              >
-                Kirim
-              </button>
-            </form>
-          </div>
-        )}
-
-        <button
-          onClick={() => setIsFloatingChatOpen(!isFloatingChatOpen)}
-          className="h-14 w-14 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center text-black font-bold text-xl shadow-xl hover:scale-105 active:scale-95 transition"
-          title="Tanya HR AI"
-        >
-          💬
-        </button>
-      </div>
+      {/* File Viewer Modal (Task 6) */}
+      {activeViewerFile && (
+        <FileViewerModal
+          fileName={activeViewerFile.name}
+          fileData={activeViewerFile.data}
+          editedAt={activeViewerFile.editedAt}
+          onClose={() => setActiveViewerFile(null)}
+          onSaveText={async (newText) => {
+            const res = await updateLeaveAttachmentAction(activeViewerFile.leaveId!, newText);
+            if (res.success && res.data) {
+              setActiveViewerFile(prev => prev ? {
+                ...prev,
+                data: Buffer.from(newText, "utf-8").toString("base64"),
+                editedAt: (res.data as any).metadata.editedAt
+              } : null);
+              router.refresh();
+            }
+            return res;
+          }}
+        />
+      )}
     </div>
   );
 }

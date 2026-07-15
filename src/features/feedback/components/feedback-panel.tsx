@@ -6,7 +6,10 @@ import { FeedbackCategory, FeedbackModule, FeedbackStatus } from "@prisma/client
 import {
   submitSystemFeedbackAction,
   updateSystemFeedbackStatusAction,
+  updateFeedbackAttachmentAction,
 } from "@/features/feedback/actions/system-feedback.actions";
+import { exportToCSV } from "@/features/shared/lib/export";
+import { FileViewerModal } from "@/features/shared/components/file-viewer-modal";
 
 interface FeedbackItem {
   id: string;
@@ -59,10 +62,36 @@ export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanel
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [changingId, setChangingId] = useState<string | null>(null);
 
+  // Active File Viewer Modal state
+  const [activeViewerFile, setActiveViewerFile] = useState<{
+    name: string;
+    data: string;
+    feedbackId: string;
+    editedAt?: string | null;
+  } | null>(null);
+
   // File Upload states
   const [fileName, setFileName] = useState("");
   const [fileBase64, setFileBase64] = useState("");
   const [readingFile, setReadingFile] = useState(false);
+
+  const handleExportFeedback = () => {
+    const headers = [
+      { key: "category", label: "Kategori" },
+      { key: "submittedBy", label: "Pengirim" },
+      { key: "message", label: "Pesan" },
+      { key: "status", label: "Status" },
+      { key: "createdAt", label: "Diajukan Pada" },
+    ];
+    const mappedData = feedbackItems.map((item) => ({
+      category: formatCategory(item.category),
+      submittedBy: item.submittedBy.name || item.submittedBy.email,
+      message: parseFeedbackMessage(item.message).text,
+      status: item.status,
+      createdAt: new Date(item.createdAt).toLocaleString("id-ID"),
+    }));
+    exportToCSV(mappedData, headers, `Laporan_Feedback_${module}`);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -236,7 +265,16 @@ export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanel
 
       <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6 flex flex-col h-[70vh]">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-bold text-white">Inbox Feedback</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-base font-bold text-white">Inbox Feedback</h3>
+            <button
+              type="button"
+              onClick={handleExportFeedback}
+              className="px-2.5 py-1.5 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-[10px] font-bold text-zinc-300 hover:text-white transition"
+            >
+              📥 Export (CSV)
+            </button>
+          </div>
           <span className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1 text-xs text-zinc-400">
             {feedbackItems.length} item
           </span>
@@ -270,10 +308,16 @@ export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanel
                       </span>
                       <button
                         type="button"
-                        onClick={() => handleDownloadAttachment(parsed.attachment!.name, parsed.attachment!.data)}
+                        onClick={() => {
+                          setActiveViewerFile({
+                            name: parsed.attachment!.name,
+                            data: parsed.attachment!.data,
+                            feedbackId: item.id,
+                          });
+                        }}
                         className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 uppercase transition"
                       >
-                        Unduh
+                        Lihat Berkas
                       </button>
                     </div>
                   )}
@@ -314,6 +358,26 @@ export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanel
           )}
         </div>
       </div>
+
+      {/* File Viewer Modal (Task 6) */}
+      {activeViewerFile && (
+        <FileViewerModal
+          fileName={activeViewerFile.name}
+          fileData={activeViewerFile.data}
+          onClose={() => setActiveViewerFile(null)}
+          onSaveText={async (newText) => {
+            const res = await updateFeedbackAttachmentAction(activeViewerFile.feedbackId, newText);
+            if (res.success && res.data) {
+              setActiveViewerFile(prev => prev ? {
+                ...prev,
+                data: Buffer.from(newText, "utf-8").toString("base64")
+              } : null);
+              router.refresh();
+            }
+            return res;
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -81,6 +81,8 @@ export class HrService {
       startDate: string;
       endDate: string;
       reason?: string;
+      attachmentName?: string;
+      attachmentData?: string;
     }
   ) {
     const start = new Date(data.startDate);
@@ -102,7 +104,6 @@ export class HrService {
       throw new Error("Sudah ada pengajuan cuti lain yang bertumpang tindih pada rentang tanggal tersebut.");
     }
 
-    // Check balance for annual leaves
     if (data.type === LeaveType.ANNUAL) {
       const currentBalance = await HrRepository.getLeaveBalance(userId);
       if (requestedDays > currentBalance) {
@@ -110,12 +111,17 @@ export class HrService {
       }
     }
 
+    let finalReason = data.reason || "";
+    if (data.attachmentName && data.attachmentData) {
+      finalReason = `${finalReason}\n\n---ATTACHMENT_START---\nNAME: ${data.attachmentName}\nDATA: ${data.attachmentData}\n---ATTACHMENT_END---`;
+    }
+
     const leaveRequest = await HrRepository.createLeaveRequest({
       userId,
       type: data.type,
       startDate: start,
       endDate: end,
-      reason: data.reason,
+      reason: finalReason || undefined,
     });
 
     // Write Centralized Audit Log

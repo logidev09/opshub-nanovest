@@ -185,6 +185,27 @@ async function main() {
       category: "regulation",
       metadata: { tags: ["attendance", "remote"], version: "1.0" },
     },
+    {
+      title: "Pedoman PSAK 72 / IFRS 15 - Pengakuan Pendapatan Juli 2026",
+      content:
+        "Berdasarkan standar PSAK 72 dan IFRS 15 terbaru per Juli 2026, pendapatan dari kontrak dengan pelanggan diakui dengan 5 langkah evaluasi: mengidentifikasi kontrak, mengidentifikasi kewajiban kinerja, menentukan harga transaksi, mengalokasikan harga transaksi, dan mengakui pendapatan saat kewajiban kinerja terpenuhi. Segala bentuk rabat atau insentif harus dicatat sebagai pengurang pendapatan usaha secara akurat.",
+      category: "finance_psak",
+      metadata: { tags: ["psak", "revenue"], version: "1.0" },
+    },
+    {
+      title: "Pedoman Penyajian Laporan Keuangan IFRS 18 Juli 2026",
+      content:
+        "Penyajian laporan keuangan per Juli 2026 wajib mengadopsi standar IFRS 18 yang memisahkan laba rugi menjadi tiga kategori utama: Pendapatan Operasi, Investasi, dan Pembiayaan. Hal ini bertujuan untuk memberikan transparansi kesehatan finansial korporasi serta mempermudah analisis margin operasional oleh auditor eksternal.",
+      category: "finance_ifrs",
+      metadata: { tags: ["ifrs", "presentation"], version: "1.0" },
+    },
+    {
+      title: "Ketentuan Pajak PPN 11% & PPh Badan Juli 2026",
+      content:
+        "Ketentuan perpajakan Republik Indonesia per Juli 2026 menetapkan tarif PPN standar sebesar 11%. Untuk PPh Badan ditetapkan tarif 22% dari penghasilan kena pajak. Kewajiban pemotongan PPh Pasal 21 atas upah karyawan dan PPh Pasal 23 atas jasa vendor wajib dicatat dan dilaporkan melalui e-SST paling lambat tanggal 10 bulan berikutnya.",
+      category: "finance_tax",
+      metadata: { tags: ["tax", "ppn", "pph"], version: "1.0" },
+    },
   ]);
 
   await prisma.leaveRequest.createMany({

@@ -102,3 +102,51 @@ export async function updateSystemFeedbackStatusAction(feedbackId: string, statu
     return { success: false, error: getErrorMessage(error, "Gagal memperbarui status feedback.") };
   }
 }
+
+export async function updateFeedbackAttachmentAction(feedbackId: string, newText: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+
+  const sessionUser = session.user as SessionUser;
+
+  try {
+    const feedback = await prisma.systemFeedback.findUnique({ where: { id: feedbackId } });
+    if (!feedback) {
+      return { success: false, error: "Feedback tidak ditemukan." };
+    }
+
+    if (feedback.submittedById !== sessionUser.id && sessionUser.role !== "ADMIN") {
+      return { success: false, error: "Anda tidak memiliki wewenang untuk mengubah berkas ini." };
+    }
+
+    const marker = "---ATTACHMENT_START---";
+    if (!feedback.message.includes(marker)) {
+      return { success: false, error: "Feedback ini tidak memiliki lampiran berkas." };
+    }
+
+    const parts = feedback.message.split(marker);
+    const mainMessage = parts[0].trim();
+    const rest = parts[1] || "";
+    const nameMatch = rest.match(/NAME:\s*(.*?)\n/);
+    const nameClean = nameMatch ? nameMatch[1].trim() : "document.txt";
+    const newBase64 = Buffer.from(newText, "utf-8").toString("base64");
+
+    const newMessage = `${mainMessage}\n\n${marker}\nNAME: ${nameClean}\nDATA: ${newBase64}\n---ATTACHMENT_END---`;
+
+    const updated = await prisma.systemFeedback.update({
+      where: { id: feedbackId },
+      data: {
+        message: newMessage,
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/qa");
+    revalidatePath("/dashboard/security");
+    return { success: true, data: JSON.parse(JSON.stringify(updated)) };
+  } catch (error: any) {
+    return { success: false, error: "Gagal memperbarui berkas." };
+  }
+}

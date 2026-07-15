@@ -29,6 +29,8 @@ export default async function AdminAccountsPage() {
       isActive: true,
       createdAt: true,
       image: true,
+      division: true,
+      password: true,
     },
   });
 
