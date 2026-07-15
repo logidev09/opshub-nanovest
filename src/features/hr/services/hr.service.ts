@@ -56,9 +56,9 @@ export class HrService {
   /**
    * Retrieves context from database policies using vector similarity search.
    */
-  static async getRagContext(prompt: string): Promise<{ context: string; matchedCount: number }> {
+  static async getRagContext(prompt: string, isFinance = false): Promise<{ context: string; matchedCount: number }> {
     const vector = await getEmbedding(prompt);
-    const policies = await HrRepository.searchPolicies(vector, 2);
+    const policies = await HrRepository.searchPolicies(vector, 2, isFinance);
 
     if (policies.length === 0) {
       return { context: "No policies found matching the query.", matchedCount: 0 };

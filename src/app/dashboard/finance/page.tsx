@@ -31,7 +31,11 @@ export default async function FinanceLedgerPage() {
         </div>
       </div>
 
-      <FinanceLedgerClient {...snapshot} userRole={sessionUser.role || "USER"} />
+      <FinanceLedgerClient
+        {...snapshot}
+        userRole={sessionUser.role || "USER"}
+        userDivision={sessionUser.division || ""}
+      />
     </div>
   );
 }

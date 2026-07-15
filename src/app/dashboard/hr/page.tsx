@@ -23,11 +23,6 @@ export default async function HrDashboardPage() {
   }
 
   const sessionUser = session.user as SessionUser;
-  
-  if (sessionUser.role !== "ADMIN" && sessionUser.role !== "HR") {
-    redirect("/dashboard");
-  }
-
   const userId = sessionUser.id;
   const userRole = sessionUser.role || "USER";
 

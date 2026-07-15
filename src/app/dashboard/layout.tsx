@@ -65,8 +65,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const sessionUser = session?.user as SessionUser | undefined;
 
   const navigation = [
-    { name: "Overview", href: "/dashboard", icon: IconHome },
-    ...(sessionUser?.role === "HR" || sessionUser?.role === "ADMIN"
+    ...(sessionUser?.role === "ADMIN" || sessionUser?.division === "CX Engineer"
+      ? [{ name: "Overview", href: "/dashboard", icon: IconHome }]
+      : []),
+    ...(sessionUser?.role === "HR" || sessionUser?.role === "ADMIN" || sessionUser?.division === "HR"
       ? [{ name: "HR Copilot (AI)", href: "/dashboard/hr", icon: IconHr }]
       : []),
     ...(sessionUser?.division === "Accounting" || sessionUser?.role === "ADMIN"

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { useSession } from "next-auth/react";
-import { submitLeaveAction, reviewLeaveAction } from "@/features/hr/actions/leave.actions";
+import { submitLeaveAction, reviewLeaveAction, cancelLeaveAction } from "@/features/hr/actions/leave.actions";
 import { LeaveStatus, LeaveType } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import type { UIMessage } from "ai";
@@ -245,6 +245,98 @@ export function HrDashboardClient({
       router.refresh();
     } else {
       alert(res.error || "Gagal memproses persetujuan.");
+    }
+  };
+
+  const [cancelLoading, setCancelLoading] = useState<string | null>(null);
+
+  const handleLeaveCancel = async (leaveId: string) => {
+    if (!confirm("Apakah Anda yakin ingin membatalkan pengajuan cuti ini?")) return;
+    setCancelLoading(leaveId);
+    const res = await cancelLeaveAction(leaveId);
+    setCancelLoading(null);
+
+    if (res.success) {
+      router.refresh();
+    } else {
+      alert(res.error || "Gagal membatalkan pengajuan cuti.");
+    }
+  };
+
+  // Floating Chat states
+  const [isFloatingChatOpen, setIsFloatingChatOpen] = useState(false);
+  const [floatingChatInput, setFloatingChatInput] = useState("");
+  const [floatingChatMessages, setFloatingChatMessages] = useState<Array<{ role: "user" | "assistant"; text: string }>>([
+    {
+      role: "assistant",
+      text: "Halo! Saya HR Floating Assistant. Ada yang bisa saya bantu terkait kebijakan cuti, data RAG dokumen, atau status pengajuan cuti Anda?",
+    },
+  ]);
+  const [floatingChatLoading, setFloatingChatLoading] = useState(false);
+
+  const handleFloatingChatSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!floatingChatInput.trim() || floatingChatLoading) return;
+
+    const userText = floatingChatInput.trim();
+    setFloatingChatInput("");
+    setFloatingChatMessages((prev) => [...prev, { role: "user", text: userText }]);
+    setFloatingChatLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            ...floatingChatMessages.map((m) => ({
+              role: m.role,
+              content: m.text,
+            })),
+            { role: "user", content: userText },
+          ],
+        }),
+      });
+
+      if (res.ok) {
+        const text = await res.text();
+        let cleanedResponse = text;
+
+        if (text.includes('{"type":"text-delta"')) {
+          try {
+            const matches = text.match(/"delta":"(.*?)"/g);
+            if (matches) {
+              cleanedResponse = matches
+                .map((m) => m.replace(/"delta":"/, "").replace(/"$/, ""))
+                .join("")
+                .replace(/\\n/g, "\n");
+            }
+          } catch {}
+        } else if (text.startsWith("0:")) {
+          cleanedResponse = text
+            .split("\n")
+            .filter((line) => line.startsWith("0:"))
+            .map((line) => line.slice(2).replace(/"/g, ""))
+            .join("");
+        }
+
+        setFloatingChatMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: cleanedResponse.replace(/\\n/g, "\n").trim() },
+        ]);
+      } else {
+        setFloatingChatMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: "Terjadi kesalahan menghubungi HR Copilot." },
+        ]);
+      }
+    } catch {
+      setFloatingChatMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Terjadi kesalahan koneksi internet." },
+      ]);
+    } finally {
+      setFloatingChatLoading(false);
     }
   };
 
@@ -608,6 +700,15 @@ export function HrDashboardClient({
                               )}
                             </div>
                           )}
+                          {leave.status === LeaveStatus.PENDING && (
+                            <button
+                              onClick={() => handleLeaveCancel(leave.id)}
+                              disabled={cancelLoading === leave.id}
+                              className="text-[9px] font-bold text-amber-500 hover:text-amber-400 uppercase disabled:opacity-50 mt-1"
+                            >
+                              Batalkan
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -667,6 +768,86 @@ export function HrDashboardClient({
           </div>
         </div>
       )}
+
+      {/* Floating Chat Widget for HR Copilot (Task 4 & 6) */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+        {isFloatingChatOpen && (
+          <div className="mb-4 w-80 md:w-96 h-[480px] rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl">
+            {/* Header */}
+            <div className="px-4 py-3 bg-zinc-900/60 border-b border-zinc-900 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider">HR AI Assistant</span>
+              </div>
+              <button
+                onClick={() => setIsFloatingChatOpen(false)}
+                className="text-zinc-400 hover:text-white transition text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Message Area */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs text-left">
+              {floatingChatMessages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex flex-col max-w-[85%] ${
+                    msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start"
+                  }`}
+                >
+                  <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold mb-1">
+                    {msg.role === "user" ? "Anda" : "HR AI"}
+                  </span>
+                  <div
+                    className={`rounded-2xl px-3.5 py-2.5 leading-relaxed whitespace-pre-wrap ${
+                      msg.role === "user"
+                        ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                        : "bg-zinc-900/80 text-zinc-300 border border-zinc-900"
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+
+              {floatingChatLoading && (
+                <div className="flex gap-2 items-center text-zinc-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:0.2s]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:0.4s]" />
+                  <span className="text-[10px]">AI sedang mengetik...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Input Form */}
+            <form onSubmit={handleFloatingChatSend} className="p-3 border-t border-zinc-900 bg-zinc-950/40 flex gap-2">
+              <input
+                value={floatingChatInput}
+                onChange={(e) => setFloatingChatInput(e.target.value)}
+                placeholder="Tanyakan kebijakan cuti, aturan, dll..."
+                className="flex-1 rounded-xl border border-zinc-850 bg-zinc-900 px-3.5 py-2 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
+              />
+              <button
+                type="submit"
+                disabled={!floatingChatInput.trim() || floatingChatLoading}
+                className="px-3 rounded-xl bg-emerald-500 text-black hover:opacity-95 disabled:opacity-50 font-bold"
+              >
+                Kirim
+              </button>
+            </form>
+          </div>
+        )}
+
+        <button
+          onClick={() => setIsFloatingChatOpen(!isFloatingChatOpen)}
+          className="h-14 w-14 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center text-black font-bold text-xl shadow-xl hover:scale-105 active:scale-95 transition"
+          title="Tanya HR AI"
+        >
+          💬
+        </button>
+      </div>
     </div>
   );
 }

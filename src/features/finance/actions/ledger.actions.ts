@@ -18,6 +18,8 @@ interface PostJournalEntryInput {
   debitAccountId: string;
   creditAccountId: string;
   amount: number;
+  attachmentName?: string;
+  attachmentData?: string;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -35,10 +37,13 @@ export async function postJournalEntryAction(input: PostJournalEntryInput) {
     return { success: false, error: "Hanya admin atau HR yang dapat memposting jurnal." };
   }
 
-  const description = input.description.trim();
+  let description = input.description.trim();
+  if (input.attachmentName && input.attachmentData) {
+    description = `${description}\n\n---ATTACHMENT_START---\nNAME: ${input.attachmentName}\nDATA: ${input.attachmentData}\n---ATTACHMENT_END---`;
+  }
   const amount = Number(input.amount);
 
-  if (!description) {
+  if (!input.description.trim()) {
     return { success: false, error: "Deskripsi jurnal wajib diisi." };
   }
 
@@ -160,5 +165,75 @@ export async function deleteJournalEntryAction(id: string) {
     return { success: true, message: "Jurnal berhasil dihapus." };
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error, "Gagal menghapus jurnal.") };
+  }
+}
+
+export async function updateJournalEntryAction(
+  id: string,
+  data: {
+    entryDate: string;
+    description: string;
+    attachmentName?: string;
+    attachmentData?: string;
+  }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+
+  const sessionUser = session.user as SessionUser;
+  if (sessionUser.role !== "ADMIN") {
+    return { success: false, error: "Hanya admin yang dapat mengubah jurnal entry." };
+  }
+
+  const rawDescription = data.description.trim();
+  if (!rawDescription) {
+    return { success: false, error: "Deskripsi wajib diisi." };
+  }
+
+  if (!data.entryDate) {
+    return { success: false, error: "Tanggal wajib diisi." };
+  }
+
+  let finalDescription = rawDescription;
+  if (data.attachmentName && data.attachmentData) {
+    finalDescription = `${finalDescription}\n\n---ATTACHMENT_START---\nNAME: ${data.attachmentName}\nDATA: ${data.attachmentData}\n---ATTACHMENT_END---`;
+  }
+
+  try {
+    const oldEntry = await prisma.journalEntry.findUnique({ where: { id } });
+    if (!oldEntry) {
+      return { success: false, error: "Jurnal tidak ditemukan." };
+    }
+
+    const updatedEntry = await prisma.journalEntry.update({
+      where: { id },
+      data: {
+        entryDate: new Date(data.entryDate),
+        description: finalDescription,
+      },
+    });
+
+    await AuditService.log({
+      userId: sessionUser.id,
+      action: "UPDATE_JOURNAL_ENTRY",
+      entity: "JournalEntry",
+      entityId: id,
+      oldValue: {
+        entryDate: oldEntry.entryDate,
+        description: oldEntry.description,
+      },
+      newValue: {
+        entryDate: updatedEntry.entryDate,
+        description: updatedEntry.description,
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/finance");
+    return { success: true, data: updatedEntry, message: "Jurnal entry berhasil diperbarui." };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error, "Gagal memperbarui jurnal entry.") };
   }
 }

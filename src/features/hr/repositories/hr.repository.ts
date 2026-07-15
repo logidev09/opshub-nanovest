@@ -9,12 +9,14 @@ export class HrRepository {
   /**
    * Performs pgvector similarity search. Falls back to a standard query if it fails.
    */
-  static async searchPolicies(queryVector: number[], limit = 3) {
+  static async searchPolicies(queryVector: number[], limit = 3, isFinance = false) {
     try {
       const vectorString = `[${queryVector.join(",")}]`;
+      const operator = isFinance ? "LIKE 'finance_%'" : "NOT LIKE 'finance_%'";
       const policies = await prisma.$queryRawUnsafe<SearchPolicyResult[]>(
         `SELECT id, title, content, category, metadata
          FROM "HrPolicy"
+         WHERE category ${operator}
          ORDER BY embedding <=> $1::vector
          LIMIT $2`,
         vectorString,
@@ -23,10 +25,17 @@ export class HrRepository {
       return policies;
     } catch (error) {
       console.warn("[HrRepository] Vector search failed or pgvector extension missing. Falling back to text-based matching:", error);
-      // Fallback: Simple query when pgvector is not setup
-      return prisma.hrPolicy.findMany({
-        take: limit,
-      });
+      if (isFinance) {
+        return prisma.hrPolicy.findMany({
+          where: { category: { startsWith: "finance_" } },
+          take: limit,
+        });
+      } else {
+        return prisma.hrPolicy.findMany({
+          where: { category: { not: { startsWith: "finance_" } } },
+          take: limit,
+        });
+      }
     }
   }
 
