@@ -259,9 +259,9 @@ export function HrDashboardClient({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
-      {/* LEFT COLUMN: HR Chatbot (8 Cols on LG) */}
-      <div className="lg:col-span-7 flex flex-col h-[75vh] min-w-0 border border-zinc-900 bg-zinc-900/10 rounded-2xl overflow-hidden backdrop-blur-xl">
+    <div className="flex flex-col lg:flex-row gap-8 items-start w-full">
+      {/* LEFT COLUMN: HR Chatbot */}
+      <div className="w-full lg:w-[58%] flex flex-col h-[75vh] min-w-0 border border-zinc-900 bg-zinc-900/10 rounded-2xl overflow-hidden backdrop-blur-xl">
         {/* Chat Header */}
         <div className="px-6 py-4 border-b border-zinc-900 bg-zinc-950/40 flex items-center gap-3">
           <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -369,8 +369,8 @@ export function HrDashboardClient({
         </form>
       </div>
 
-      {/* RIGHT COLUMN: Leave Request Form & Leaves list (5 Cols on LG) */}
-      <div className="lg:col-span-5 space-y-6 min-w-0">
+      {/* RIGHT COLUMN: Leave Request Form & Leaves list */}
+      <div className="w-full lg:w-[42%] space-y-6 min-w-0">
         {/* Admin User Creation */}
         {userRole === "ADMIN" && (
           <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20">
