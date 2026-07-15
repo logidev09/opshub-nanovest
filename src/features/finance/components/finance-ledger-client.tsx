@@ -355,7 +355,13 @@ export function FinanceLedgerClient({
           Modul ini sudah membaca chart of accounts dari database, menghitung total trial balance secara real-time, dan memvalidasi jurnal balanced sebelum disimpan.
         </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-5 text-xs font-semibold">
-          {summaryCards.map((item) => (
+          {[
+            { title: "Total Assets (Aset)", value: asset },
+            { title: "Total Liabilities (Liabilitas)", value: liability },
+            { title: "Total Equity (Ekuitas)", value: equity },
+            { title: "Total Revenue (Pendapatan)", value: revenue },
+            { title: "Total Expenses (Beban)", value: expense },
+          ].map((item) => (
             <div key={item.title} className="rounded-xl border border-zinc-900 bg-zinc-950 p-3.5">
               <span className="mb-1 block text-emerald-400">{item.title}</span>
               <span className="font-medium text-zinc-300">{formatCurrency(item.value)}</span>
