@@ -4,8 +4,11 @@ import { prisma } from "@/features/shared/lib/db";
 import { FeedbackPanel } from "@/features/feedback/components/feedback-panel";
 import { PlaywrightSimulator } from "./qa-simulator";
 
+import { redirect } from "next/navigation";
+
 type SessionUser = {
   role?: string;
+  division?: string | null;
 };
 
 const automatedTests = [
@@ -24,7 +27,14 @@ const manualTests = [
 
 export default async function QaLabPage() {
   const session = await getServerSession(authOptions);
-  const userRole = (session?.user as SessionUser | undefined)?.role || "USER";
+  if (!session) redirect("/");
+  
+  const sessionUser = session.user as SessionUser;
+  if (sessionUser.role !== "ADMIN" && sessionUser.division !== "Quality Assurance") {
+    redirect("/dashboard");
+  }
+  
+  const userRole = sessionUser.role || "USER";
 
   const feedbackItems = await prisma.systemFeedback.findMany({
     where: { module: "QA" },

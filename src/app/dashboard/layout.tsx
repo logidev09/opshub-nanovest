@@ -8,6 +8,7 @@ import { useState } from "react";
 type SessionUser = {
   name?: string | null;
   role?: string;
+  division?: string | null;
 };
 
 // Inline SVG Icon components for simplicity and aesthetics
@@ -65,10 +66,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navigation = [
     { name: "Overview", href: "/dashboard", icon: IconHome },
-    { name: "HR Copilot (AI)", href: "/dashboard/hr", icon: IconHr },
-    { name: "Finance Ledger", href: "/dashboard/finance", icon: IconFinance },
-    { name: "QA Lab", href: "/dashboard/qa", icon: IconQa },
-    { name: "SecOps", href: "/dashboard/security", icon: IconSecurity },
+    ...(sessionUser?.role === "HR" || sessionUser?.role === "ADMIN"
+      ? [{ name: "HR Copilot (AI)", href: "/dashboard/hr", icon: IconHr }]
+      : []),
+    ...(sessionUser?.division === "Accounting" || sessionUser?.role === "ADMIN"
+      ? [{ name: "Finance Ledger", href: "/dashboard/finance", icon: IconFinance }]
+      : []),
+    ...(sessionUser?.division === "Quality Assurance" || sessionUser?.role === "ADMIN"
+      ? [{ name: "QA Lab", href: "/dashboard/qa", icon: IconQa }]
+      : []),
+    ...(sessionUser?.division === "Security Operations & IT Support" || sessionUser?.role === "ADMIN"
+      ? [{ name: "SecOps", href: "/dashboard/security", icon: IconSecurity }]
+      : []),
     ...(sessionUser?.role === "ADMIN"
       ? [{ name: "Admin Accounts", href: "/dashboard/admin", icon: IconAdmin }]
       : []),

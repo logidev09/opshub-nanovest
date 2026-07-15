@@ -8,11 +8,13 @@ import bcrypt from "bcrypt";
 type AppToken = JWT & {
   id?: string;
   role?: string;
+  division?: string | null;
 };
 
 type AppSessionUser = Session["user"] & {
   id?: string;
   role?: string;
+  division?: string | null;
 };
 
 export const authOptions: AuthOptions = {
@@ -51,16 +53,23 @@ export const authOptions: AuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
-        };
+          division: user.division,
+        } as any;
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       const appToken = token as AppToken;
       if (user) {
         appToken.id = user.id;
         appToken.role = "role" in user ? String(user.role) : undefined;
+        appToken.division = "division" in user ? String(user.division) : undefined;
+      }
+      if (trigger === "update" && session) {
+        if (session.name) appToken.name = session.name;
+        if (session.image !== undefined) appToken.picture = session.image;
+        if (session.division !== undefined) appToken.division = session.division;
       }
       return appToken;
     },
@@ -70,6 +79,7 @@ export const authOptions: AuthOptions = {
         const appToken = token as AppToken;
         appUser.id = appToken.id;
         appUser.role = appToken.role;
+        appUser.division = appToken.division;
       }
       return session;
     },

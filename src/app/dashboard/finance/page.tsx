@@ -1,9 +1,19 @@
 import { getLedgerSnapshot } from "@/features/finance/lib/ledger";
 import { FinanceLedgerClient } from "@/features/finance/components/finance-ledger-client";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function FinanceLedgerPage() {
+  const session = await getServerSession(authOptions);
+  if (!session) redirect("/");
+  const sessionUser = session.user as any;
+  if (sessionUser.role !== "ADMIN" && sessionUser.division !== "Accounting") {
+    redirect("/dashboard");
+  }
+
   const snapshot = await getLedgerSnapshot();
 
   return (
@@ -21,7 +31,7 @@ export default async function FinanceLedgerPage() {
         </div>
       </div>
 
-      <FinanceLedgerClient {...snapshot} />
+      <FinanceLedgerClient {...snapshot} userRole={sessionUser.role || "USER"} />
     </div>
   );
 }

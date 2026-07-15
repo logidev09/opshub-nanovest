@@ -159,14 +159,22 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
-                Foto Profil (URL Gambar)
+                Foto Profil (Upload File)
               </label>
               <input
-                type="text"
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
-                placeholder="https://example.com/avatar.jpg"
-                className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-4 py-3 text-sm text-white placeholder-zinc-700 outline-none focus:border-emerald-500/80 transition"
+                type="file"
+                accept=".jpg,.jpeg,.png,.pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setImage(reader.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/80 transition"
               />
             </div>
 

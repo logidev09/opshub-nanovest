@@ -561,22 +561,52 @@ export function HrDashboardClient({
                 if (leave.status === LeaveStatus.REJECTED) badgeClass = "text-red-400 bg-red-500/10 border-red-500/20";
 
                 return (
-                  <div
-                    key={leave.id}
-                    className="flex items-center justify-between p-3 rounded-xl border border-zinc-900 bg-zinc-950/40 text-xs"
-                  >
-                    <div>
-                      <span className="font-semibold text-white block uppercase tracking-wide text-[10px]">
-                        {leave.type} {leave.userName ? `· ${leave.userName}` : ""}
-                      </span>
-                      <span className="text-zinc-500 mt-1 block">
-                        {new Date(leave.startDate).toLocaleDateString("id-ID")} - {new Date(leave.endDate).toLocaleDateString("id-ID")}
-                      </span>
+                    <div
+                      key={leave.id}
+                      className="flex flex-col p-3 rounded-xl border border-zinc-900 bg-zinc-950/40 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-semibold text-white block uppercase tracking-wide text-[10px]">
+                            {leave.type} {leave.userName ? `· ${leave.userName}` : ""}
+                          </span>
+                          <span className="text-zinc-500 mt-1 block">
+                            {new Date(leave.startDate).toLocaleDateString("id-ID")} - {new Date(leave.endDate).toLocaleDateString("id-ID")}
+                          </span>
+                          <div className="text-[9px] text-zinc-600 mt-1">
+                            Diajukan: {new Date(leave.createdAt).toLocaleDateString("id-ID")}{" "}
+                            {leave.approvedAt && `| Diproses: ${new Date(leave.approvedAt).toLocaleDateString("id-ID")}`}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <span className={`px-2.5 py-0.5 rounded-full font-semibold border text-[10px] ${badgeClass}`}>
+                            {leave.status}
+                          </span>
+                          {userRole === "ADMIN" && (
+                            <div className="flex gap-1">
+                              {leave.status !== LeaveStatus.APPROVED && (
+                                <button
+                                  onClick={() => handleLeaveReview(leave.id, LeaveStatus.APPROVED)}
+                                  disabled={reviewLoading === leave.id}
+                                  className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase disabled:opacity-50"
+                                >
+                                  Setujui
+                                </button>
+                              )}
+                              {leave.status !== LeaveStatus.REJECTED && (
+                                <button
+                                  onClick={() => handleLeaveReview(leave.id, LeaveStatus.REJECTED)}
+                                  disabled={reviewLoading === leave.id}
+                                  className="text-[9px] font-bold text-red-400 hover:text-red-300 uppercase disabled:opacity-50 ml-2"
+                                >
+                                  Tolak
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <span className={`px-2.5 py-0.5 rounded-full font-semibold border ${badgeClass}`}>
-                      {leave.status}
-                    </span>
-                  </div>
                 );
               })
             ) : (

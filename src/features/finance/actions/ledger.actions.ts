@@ -120,3 +120,45 @@ export async function postJournalEntryAction(input: PostJournalEntryInput) {
     return { success: false, error: getErrorMessage(error, "Gagal memposting jurnal.") };
   }
 }
+
+export async function deleteJournalEntryAction(id: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+
+  const sessionUser = session.user as SessionUser;
+  if (sessionUser.role !== "ADMIN") {
+    return { success: false, error: "Hanya admin yang dapat menghapus/mengubah kembali jurnal." };
+  }
+
+  try {
+    const entry = await prisma.journalEntry.findUnique({ where: { id } });
+    if (!entry) {
+      return { success: false, error: "Jurnal tidak ditemukan." };
+    }
+
+    await prisma.journalEntry.delete({
+      where: { id },
+    });
+
+    await AuditService.log({
+      userId: sessionUser.id,
+      action: "DELETE_JOURNAL_ENTRY",
+      entity: "JournalEntry",
+      entityId: entry.id,
+      oldValue: {
+        reference: entry.reference,
+        description: entry.description,
+        totalDebit: entry.totalDebit,
+        totalCredit: entry.totalCredit,
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/finance");
+    return { success: true, message: "Jurnal berhasil dihapus." };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error, "Gagal menghapus jurnal.") };
+  }
+}

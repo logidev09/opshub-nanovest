@@ -4,8 +4,11 @@ import { prisma } from "@/features/shared/lib/db";
 import { FeedbackPanel } from "@/features/feedback/components/feedback-panel";
 import { SecuritySimulator } from "./security-simulator";
 
+import { redirect } from "next/navigation";
+
 type SessionUser = {
   role?: string;
+  division?: string | null;
 };
 
 const secopsAutomations = [
@@ -24,7 +27,14 @@ const secopsManualChecks = [
 
 export default async function SecurityPage() {
   const session = await getServerSession(authOptions);
-  const userRole = (session?.user as SessionUser | undefined)?.role || "USER";
+  if (!session) redirect("/");
+  
+  const sessionUser = session.user as SessionUser;
+  if (sessionUser.role !== "ADMIN" && sessionUser.division !== "Security Operations & IT Support") {
+    redirect("/dashboard");
+  }
+  
+  const userRole = sessionUser.role || "USER";
 
   const feedbackItems = await prisma.systemFeedback.findMany({
     where: { module: "SECOPS" },

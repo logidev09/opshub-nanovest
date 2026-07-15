@@ -84,50 +84,60 @@ async function main() {
   await prisma.journalLine.deleteMany().catch(() => {});
   await prisma.journalEntry.deleteMany().catch(() => {});
   await prisma.financeAccount.deleteMany().catch(() => {});
-  await prisma.systemFeedback.deleteMany().catch(() => {});
-  await prisma.auditLog.deleteMany().catch(() => {});
-  await prisma.leaveRequest.deleteMany().catch(() => {});
-  await prisma.hrBotSession.deleteMany().catch(() => {});
-  await prisma.hrPolicy.deleteMany().catch(() => {});
-  await prisma.user.deleteMany().catch(() => {});
+  // await prisma.systemFeedback.deleteMany().catch(() => {});
+  // await prisma.auditLog.deleteMany().catch(() => {});
+  // await prisma.leaveRequest.deleteMany().catch(() => {});
+  // await prisma.hrBotSession.deleteMany().catch(() => {});
+  // await prisma.hrPolicy.deleteMany().catch(() => {});
+  // await prisma.user.deleteMany().catch(() => {});
 
   const hashedPassword = await bcrypt.hash("password123", 10);
 
   const users = await Promise.all([
-    prisma.user.create({
-      data: {
+    prisma.user.upsert({
+      where: { email: "admin@nanovest.io" },
+      update: {},
+      create: {
         email: "admin@nanovest.io",
         name: "Admin OpsHub",
         password: hashedPassword,
         role: "ADMIN",
       },
     }),
-    prisma.user.create({
-      data: {
+    prisma.user.upsert({
+      where: { email: "hr@nanovest.io" },
+      update: {},
+      create: {
         email: "hr@nanovest.io",
         name: "HR Specialist",
         password: hashedPassword,
         role: "HR",
       },
     }),
-    prisma.user.create({
-      data: {
+    prisma.user.upsert({
+      where: { email: "user@nanovest.io" },
+      update: {},
+      create: {
         email: "user@nanovest.io",
         name: "John Doe",
         password: hashedPassword,
         role: "USER",
       },
     }),
-    prisma.user.create({
-      data: {
+    prisma.user.upsert({
+      where: { email: "sarah@nanovest.io" },
+      update: {},
+      create: {
         email: "sarah@nanovest.io",
         name: "Sarah Wijaya",
         password: hashedPassword,
         role: "USER",
       },
     }),
-    prisma.user.create({
-      data: {
+    prisma.user.upsert({
+      where: { email: "budi@nanovest.io" },
+      update: {},
+      create: {
         email: "budi@nanovest.io",
         name: "Budi Santoso",
         password: hashedPassword,
@@ -137,7 +147,7 @@ async function main() {
   ]);
 
   const [admin, hr, employee, sarah, budi] = users;
-  console.log("Seeded demo users.");
+  console.log("Seeded/Loaded demo users.");
 
   await seedPolicies([
     {

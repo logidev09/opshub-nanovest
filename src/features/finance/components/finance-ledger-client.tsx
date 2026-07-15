@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
-import { postJournalEntryAction } from "@/features/finance/actions/ledger.actions";
+import { postJournalEntryAction, deleteJournalEntryAction } from "@/features/finance/actions/ledger.actions";
 
 interface LedgerAccountView {
   id: string;
@@ -36,6 +36,7 @@ interface FinanceLedgerClientProps {
   totalDebit: number;
   totalCredit: number;
   categoryTotals: Record<string, number>;
+  userRole: string;
 }
 
 function formatCurrency(value: number) {
@@ -122,6 +123,20 @@ export function FinanceLedgerClient({
     { title: "Revenue", value: categoryTotals.REVENUE || 0 },
     { title: "Expense", value: categoryTotals.EXPENSE || 0 },
   ];
+
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus jurnal ini?")) return;
+    setIsDeleting(id);
+    const result = await deleteJournalEntryAction(id);
+    setIsDeleting(null);
+    if (result.success) {
+      router.refresh();
+    } else {
+      alert(result.error || "Gagal menghapus jurnal");
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -353,15 +368,9 @@ export function FinanceLedgerClient({
                     type="date"
                     value={entryDate}
                     onChange={(e) => setEntryDate(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white outline-none focus:border-emerald-500/80"
-                  />
-                  <button
-                    type="button"
                     onClick={openDatePicker}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-zinc-300 transition hover:border-emerald-500/40 hover:text-emerald-300"
-                  >
-                    Kalender
-                  </button>
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white outline-none focus:border-emerald-500/80 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:hidden cursor-pointer"
+                  />
                 </div>
               </div>
 
@@ -439,29 +448,45 @@ export function FinanceLedgerClient({
           <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6">
             <h3 className="mb-4 text-base font-bold text-white">Recent Journal Entries</h3>
             <div className="space-y-3">
-              {entries.map((entry) => (
-                <div key={entry.id} className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
-                  <div className="mb-2 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-white">{entry.reference}</p>
-                      <p className="text-xs text-zinc-500">{entry.description}</p>
-                    </div>
-                    <span className="text-[11px] text-zinc-500">
-                      {new Date(entry.entryDate).toLocaleDateString("id-ID")}
-                    </span>
-                  </div>
-                  <div className="space-y-1 text-xs text-zinc-400">
-                    {entry.lines.map((line) => (
-                      <div key={line.id} className="flex items-center justify-between gap-3">
-                        <span>
-                          {line.side} - {line.accountCode} {line.accountName}
-                        </span>
-                        <span className="font-mono text-zinc-300">{formatCurrency(line.amount)}</span>
+              {entries.length === 0 ? (
+                <div className="text-zinc-500 text-xs text-center py-4">Belum ada jurnal masuk.</div>
+              ) : (
+                entries.map((entry) => (
+                  <div key={entry.id} className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
+                    <div className="mb-2 flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-white">{entry.reference}</p>
+                        <p className="text-xs text-zinc-500">{entry.description}</p>
                       </div>
-                    ))}
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[11px] text-zinc-500">
+                          {new Date(entry.entryDate).toLocaleDateString("id-ID")}
+                        </span>
+                        {userRole === "ADMIN" && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(entry.id)}
+                            disabled={isDeleting === entry.id}
+                            className="text-[10px] text-rose-500 hover:text-rose-400 font-bold uppercase transition disabled:opacity-50"
+                          >
+                            Hapus
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-1 text-xs text-zinc-400">
+                      {entry.lines.map((line) => (
+                        <div key={line.id} className="flex items-center justify-between gap-3">
+                          <span>
+                            {line.side} - {line.accountCode} {line.accountName}
+                          </span>
+                          <span className="font-mono text-zinc-300">{formatCurrency(line.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
