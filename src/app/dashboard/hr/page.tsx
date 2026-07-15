@@ -9,6 +9,7 @@ import { prisma } from "@/features/shared/lib/db";
 type SessionUser = {
   id: string;
   role?: string;
+  division?: string | null;
 };
 
 export default async function HrDashboardPage() {
@@ -19,25 +20,15 @@ export default async function HrDashboardPage() {
   }
 
   const sessionUser = session.user as SessionUser;
-  const userId = sessionUser.id;
-  const userRole = sessionUser.role || "USER";
-
-  const [balance, myLeaves, pendingLeaves] = await Promise.all([
-    HrRepository.getLeaveBalance(userId),
-    userRole === "ADMIN" || userRole === "HR"
-      ? prisma.leaveRequest.findMany({
-          include: {
-            user: {
-              select: {
-                name: true,
-                email: true,
-                image: true,
-              },
-  // NOTE: If division is required, we check it here, but HR Copilot is for everyone (or HR/Admin).
-  // The user requested: HR Copilot (hanya employee hr dan admin)
+  
   if (sessionUser.role !== "ADMIN" && sessionUser.role !== "HR") {
     redirect("/dashboard");
   }
+
+  const userId = sessionUser.id;
+  const userRole = sessionUser.role || "USER";
+
+  const leaveBalance = await HrRepository.getLeaveBalance(userId);
 
   const pendingLeavesRaw = await HrRepository.getLeaveRequestsPending();
   const pendingLeavesSerialized = pendingLeavesRaw.map((l) => ({
@@ -58,7 +49,7 @@ export default async function HrDashboardPage() {
   }));
 
   const allLeavesRaw =
-    sessionUser.role === "ADMIN" || sessionUser.role === "HR"
+    userRole === "ADMIN" || userRole === "HR"
       ? await prisma.leaveRequest.findMany({
           orderBy: { createdAt: "desc" },
           take: 50,
@@ -66,7 +57,7 @@ export default async function HrDashboardPage() {
             user: { select: { name: true, email: true } },
           },
         })
-      : await HrRepository.getLeaveRequestsByUserId(sessionUser.id!);
+      : await HrRepository.getLeaveRequestsByUserId(userId);
 
   const allLeavesSerialized = allLeavesRaw.map((l) => ({
     id: l.id,
@@ -78,10 +69,8 @@ export default async function HrDashboardPage() {
     userId: l.userId,
     createdAt: l.createdAt.toISOString(),
     approvedAt: l.approvedAt ? l.approvedAt.toISOString() : null,
-    user: "user" in l ? { name: (l as any).user.name } : { name: sessionUser.name },
+    userName: "user" in l ? (l as any).user.name : sessionUser.name,
   }));
-
-  const leaveBalance = await HrRepository.getLeaveBalance(sessionUser.id!);
 
   return (
     <div className="space-y-8">
@@ -93,7 +82,7 @@ export default async function HrDashboardPage() {
             Tanyakan kebijakan ke HR Copilot atau kelola pengajuan cuti Anda.
           </p>
         </div>
-        {(sessionUser.role === "HR" || sessionUser.role === "ADMIN") && (
+        {(userRole === "HR" || userRole === "ADMIN") && (
           <div>
             <Link
               href="/dashboard/hr/policies"
@@ -116,8 +105,8 @@ export default async function HrDashboardPage() {
       <HrDashboardClient
         userId={userId}
         userRole={userRole}
-        initialBalance={balance}
-        initialMyLeaves={myLeavesSerialized}
+        initialBalance={leaveBalance}
+        initialMyLeaves={allLeavesSerialized}
         initialPendingLeaves={pendingLeavesSerialized}
       />
     </div>
