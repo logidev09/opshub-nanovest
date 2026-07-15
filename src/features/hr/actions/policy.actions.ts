@@ -262,23 +262,29 @@ Teks dokumen mentah:
 ${rawText}
 """
 
-Berikan respon dalam format JSON berikut:
+Berikan respon Anda hanya dalam format JSON mentah (raw JSON) berikut:
 {
   "title": "Judul Kebijakan Resmi",
-  "category": "salah satu dari: leave, payroll, onboarding, regulation",
+  "category": "leave atau payroll atau onboarding atau regulation",
   "content": "Isi dokumen kebijakan lengkap dalam bahasa Indonesia menggunakan format teks raw yang rapi."
 }`;
 
       const { text } = await generateText({
         model: chatModel,
         prompt,
-        responseFormat: { type: "json" },
       });
 
-      const parsed = JSON.parse(text);
-      title = parsed.title || title;
-      category = parsed.category || category;
-      formattedContent = parsed.content || formattedContent;
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          title = parsed.title || title;
+          category = parsed.category || category;
+          formattedContent = parsed.content || formattedContent;
+        }
+      } catch (err) {
+        console.error("Failed to parse Groq response JSON:", err);
+      }
     } else {
       formattedContent = `[MOCK - GROQ API KEY BELUM DIKONFIGURASI]\n\nDokumen: ${title}\n\nKebijakan HR resmi Nanovest disesuaikan dengan UU Ketenagakerjaan RI Juli 2026:\n\n1. Aturan Kerja & Ketentuan Pokok:\nSetiap karyawan tunduk pada jam kerja reguler yang diatur berdasarkan hukum ketenagakerjaan RI terbaru yaitu 40 jam seminggu.\n\n2. Hak Cuti & Istirahat:\nCuti tahunan minimal 12 hari kerja. Istirahat melahirkan 3 bulan dibayar penuh. Uang lembur dihitung berdasarkan aturan proporsional upah per jam.\n\n3. Pengawasan RAG:\nKonten ini diimpor dari file ${fileName} pada tanggal ${new Date().toLocaleDateString("id-ID")}.`;
     }
