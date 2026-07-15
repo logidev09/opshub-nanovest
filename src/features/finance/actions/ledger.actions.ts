@@ -221,11 +221,11 @@ export async function updateJournalEntryAction(
       entity: "JournalEntry",
       entityId: id,
       oldValue: {
-        entryDate: oldEntry.entryDate,
+        entryDate: oldEntry.entryDate.toISOString(),
         description: oldEntry.description,
       },
       newValue: {
-        entryDate: updatedEntry.entryDate,
+        entryDate: updatedEntry.entryDate.toISOString(),
         description: updatedEntry.description,
       },
     });
