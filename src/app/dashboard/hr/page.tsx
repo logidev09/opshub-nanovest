@@ -10,6 +10,9 @@ type SessionUser = {
   id: string;
   role?: string;
   division?: string | null;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
 };
 
 export default async function HrDashboardPage() {
