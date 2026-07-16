@@ -13,9 +13,29 @@ export async function POST(req: Request) {
       );
     }
 
+    const lowerEmail = email.trim().toLowerCase();
+
+    // Determine role based on division
+    let resolvedRole: "USER" | "HR" | "ADMIN" = "USER";
+    if (division === "HR") {
+      resolvedRole = "HR";
+    } else if (division === "CX Engineer") {
+      resolvedRole = "ADMIN";
+    }
+
+    // Enforce email domain validation for Employee/HR
+    if (resolvedRole === "USER" || resolvedRole === "HR") {
+      if (!lowerEmail.endsWith("@nanovest.io")) {
+        return NextResponse.json(
+          { error: "Pendaftaran role Employee/HR hanya diizinkan menggunakan email domain @nanovest.io." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: lowerEmail },
     });
 
     if (existingUser) {
@@ -28,20 +48,26 @@ export async function POST(req: Request) {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create the new user with default role USER (Employee)
+    const isCxEngineer = division === "CX Engineer";
+
+    // Create the new user
     const user = await prisma.user.create({
       data: {
         name,
-        email,
+        email: lowerEmail,
         password: hashedPassword,
         division,
-        role: "USER",
-        isActive: true,
+        role: resolvedRole,
+        isActive: isCxEngineer ? false : true,
       },
     });
 
+    const successMessage = isCxEngineer
+      ? "Pendaftaran berhasil! Akun Anda sedang menunggu persetujuan dari Admin Utama."
+      : "Pendaftaran berhasil!";
+
     return NextResponse.json(
-      { success: true, message: "Pendaftaran berhasil!", userId: user.id },
+      { success: true, message: successMessage, userId: user.id },
       { status: 201 }
     );
   } catch (error: any) {

@@ -10,7 +10,7 @@ export default async function FinanceLedgerPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/");
   const sessionUser = session.user as any;
-  if (sessionUser.role !== "ADMIN" && sessionUser.division !== "Accounting") {
+  if (sessionUser.role !== "ADMIN" && sessionUser.division !== "Accounting" && sessionUser.role !== "HR") {
     redirect("/dashboard");
   }
 

@@ -39,7 +39,10 @@ export const authOptions: AuthOptions = {
         }
 
         if (!user.isActive) {
-          throw new Error("This account has been deactivated");
+          if (user.division === "CX Engineer") {
+            throw new Error("Akun Anda sedang menunggu persetujuan dari Admin Utama.");
+          }
+          throw new Error("Akun Anda telah dinonaktifkan.");
         }
 
         const isPasswordValid = await bcrypt.compare(credentials.password, user.password);

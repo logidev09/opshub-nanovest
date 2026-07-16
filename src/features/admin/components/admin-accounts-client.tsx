@@ -9,6 +9,7 @@ import {
   updateUserPasswordAction,
   updateUserRoleAction,
   updateUserDivisionAction,
+  approveUserRegisterAction,
 } from "@/features/hr/actions/user.actions";
 import { exportToCSV } from "@/features/shared/lib/export";
 
@@ -49,7 +50,9 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
   const [passwordLoadingId, setPasswordLoadingId] = useState<string | null>(null);
   const [passwordDrafts, setPasswordDrafts] = useState<Record<string, string>>({});
 
-  const activeCount = useMemo(() => accounts.filter((account) => account.isActive).length, [accounts]);
+  const nonPendingAccounts = useMemo(() => accounts.filter((account) => !(account.division === "CX Engineer" && !account.isActive)), [accounts]);
+  const pendingAccounts = useMemo(() => accounts.filter((account) => account.division === "CX Engineer" && !account.isActive), [accounts]);
+  const activeCount = useMemo(() => nonPendingAccounts.filter((account) => account.isActive).length, [nonPendingAccounts]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +113,20 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
     }
 
     setMessage({ type: "success", text: "Divisi akun berhasil diperbarui." });
+    router.refresh();
+  };
+
+  const handleApproveUser = async (userId: string, approve: boolean) => {
+    setMessage(null);
+    const result = await approveUserRegisterAction(userId, approve);
+    if (!result.success) {
+      setMessage({ type: "error", text: result.error || "Gagal memproses persetujuan." });
+      return;
+    }
+    setMessage({
+      type: "success",
+      text: result.message || "Persetujuan pendaftaran berhasil diproses.",
+    });
     router.refresh();
   };
 
@@ -270,7 +287,7 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-zinc-900 bg-zinc-900/20 p-5">
             <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Total Akun</p>
-            <p className="mt-3 text-3xl font-extrabold text-white">{accounts.length}</p>
+            <p className="mt-3 text-3xl font-extrabold text-white">{nonPendingAccounts.length}</p>
           </div>
           <div className="rounded-2xl border border-zinc-900 bg-zinc-900/20 p-5">
             <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Akun Aktif</p>
@@ -281,6 +298,43 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
             <p className="mt-3 text-sm font-semibold text-zinc-300">Masked / Encrypted</p>
           </div>
         </div>
+
+        {/* Pending approvals block (Task 6) */}
+        {pendingAccounts.length > 0 && (
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6 space-y-4 shadow-lg shadow-amber-950/10">
+            <div className="flex items-center gap-2 border-b border-amber-500/10 pb-3">
+              <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+              <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider">Persetujuan Pendaftaran Baru (Divisi CX Engineer)</h3>
+            </div>
+            <div className="divide-y divide-zinc-900 border border-zinc-900 bg-zinc-950/40 rounded-xl overflow-hidden">
+              {pendingAccounts.map((user) => (
+                <div key={user.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 gap-4 transition hover:bg-zinc-900/10">
+                  <div>
+                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-wide bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800 mr-2">Admin - CX</span>
+                    <strong className="text-sm text-white">{user.name}</strong>
+                    <span className="block text-xs font-mono text-zinc-500 mt-1">{user.email}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleApproveUser(user.id, true)}
+                      className="px-4 py-2 rounded-xl bg-emerald-500 text-black text-xs font-bold hover:bg-emerald-400 transition active:scale-95 cursor-pointer"
+                    >
+                      Setujui
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApproveUser(user.id, false)}
+                      className="px-4 py-2 rounded-xl bg-red-950/50 border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-950 transition active:scale-95 cursor-pointer"
+                    >
+                      Tolak
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6">
@@ -317,7 +371,7 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-900/70">
-              {accounts.map((account) => (
+              {nonPendingAccounts.map((account) => (
                 <tr key={account.id} className="align-top text-zinc-300">
                   <td className="py-4">
                     <div className="flex items-center gap-3">

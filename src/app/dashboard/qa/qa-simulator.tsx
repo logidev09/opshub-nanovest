@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export function PlaywrightSimulator() {
+export function PlaywrightSimulator({ isReadOnly = false }: { isReadOnly?: boolean }) {
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [testResults, setTestResults] = useState<{name: string; status: string; duration: string}[]>([]);
@@ -19,6 +19,7 @@ export function PlaywrightSimulator() {
   ];
 
   const runTests = () => {
+    if (isReadOnly) return;
     setIsRunning(true);
     setProgress(0);
     setTestResults([]);
@@ -57,11 +58,11 @@ export function PlaywrightSimulator() {
         </div>
         <button
           onClick={runTests}
-          disabled={isRunning}
+          disabled={isRunning || isReadOnly}
           className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          {isRunning ? "Running..." : "Run Playwright Test Suite"}
+          {isReadOnly ? "Run Playwright (Disabled)" : isRunning ? "Running..." : "Run Playwright Test Suite"}
         </button>
       </div>
 

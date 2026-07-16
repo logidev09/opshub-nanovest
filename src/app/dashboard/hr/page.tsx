@@ -94,7 +94,7 @@ export default async function HrDashboardPage() {
       userId: l.userId,
       createdAt: l.createdAt.toISOString(),
       approvedAt: l.approvedAt ? l.approvedAt.toISOString() : null,
-      userName: "user" in l ? (l as any).user.name : sessionUser.name,
+      userName: ("user" in l && (l as any).user) ? (l as any).user.name : (sessionUser.name || "User"),
       metadata: {
         attachmentName: parsed.attachmentName,
         attachmentData: parsed.attachmentData,

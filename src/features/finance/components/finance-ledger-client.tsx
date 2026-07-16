@@ -666,129 +666,139 @@ export function FinanceLedgerClient({
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Tanggal Jurnal
-                </label>
-                <div className="relative">
+            {userRole === "HR" ? (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-6 text-center space-y-2">
+                <span className="text-xl block">🔒</span>
+                <p className="font-semibold text-zinc-400">Akses Terbatas (Read-Only)</p>
+                <p className="text-zinc-500 leading-relaxed text-[11px]">
+                  Akun HR Specialist diperbolehkan melihat data laporan buku besar ini, namun tidak memiliki wewenang untuk menambahkan entri jurnal baru.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Tanggal Jurnal
+                  </label>
+                  <div className="relative">
+                    <input
+                      ref={dateInputRef}
+                      type="date"
+                      value={entryDate}
+                      onChange={(e) => setEntryDate(e.target.value)}
+                      onClick={openDatePicker}
+                      className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white outline-none focus:border-emerald-500/80 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:hidden cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Deskripsi
+                  </label>
                   <input
-                    ref={dateInputRef}
-                    type="date"
-                    value={entryDate}
-                    onChange={(e) => setEntryDate(e.target.value)}
-                    onClick={openDatePicker}
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white outline-none focus:border-emerald-500/80 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:hidden cursor-pointer"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Contoh: Pembayaran vendor software"
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Deskripsi
-                </label>
-                <input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Contoh: Pembayaran vendor software"
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Akun Debit
-                </label>
-                <select
-                  value={debitAccountId}
-                  onChange={(e) => setDebitAccountId(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/80"
-                >
-                  {ledgerAccounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.code} - {account.name} ({account.categoryLabel})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Akun Kredit
-                </label>
-                <select
-                  value={creditAccountId}
-                  onChange={(e) => setCreditAccountId(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/80"
-                >
-                  {ledgerAccounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.code} - {account.name} ({account.categoryLabel})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Nominal
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1000"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="5000000"
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Catatan Opsional (Catatan / Memo)
-                </label>
-                <input
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Catatan tambahan (mis. Memo khusus)"
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
-                />
-              </div>
-
-              {/* Optional Attachment Upload Field (Task 4) */}
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Lampiran Berkas Bukti (PDF, PNG, JPEG, JPG, DOCX, TXT - Opsional)
-                </label>
-                <div className="relative flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 px-3 py-2 text-xs">
-                  <input
-                    type="file"
-                    accept=".pdf,.png,.jpeg,.jpg,.docx,.txt"
-                    onChange={(e) => handleFileChange(e)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                    disabled={readingFile}
-                  />
-                  <span className="text-zinc-400 truncate max-w-[170px]">
-                    {fileName || "Pilih berkas..."}
-                  </span>
-                  <button
-                    type="button"
-                    className="px-2.5 py-1 rounded bg-zinc-850 text-[10px] font-bold text-zinc-300"
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Akun Debit
+                  </label>
+                  <select
+                    value={debitAccountId}
+                    onChange={(e) => setDebitAccountId(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/80"
                   >
-                    Pilih File
-                  </button>
+                    {ledgerAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.code} - {account.name} ({account.categoryLabel})
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting || readingFile}
-                className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-2.5 text-xs font-semibold text-black transition hover:opacity-95 disabled:opacity-50"
-              >
-                {isSubmitting ? "Menyimpan..." : "Post Balanced Entry"}
-              </button>
-            </form>
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Akun Kredit
+                  </label>
+                  <select
+                    value={creditAccountId}
+                    onChange={(e) => setCreditAccountId(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/80"
+                  >
+                    {ledgerAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.code} - {account.name} ({account.categoryLabel})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Nominal
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="5000000"
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Catatan Opsional (Catatan / Memo)
+                  </label>
+                  <input
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Catatan tambahan (mis. Memo khusus)"
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
+                  />
+                </div>
+
+                {/* Optional Attachment Upload Field (Task 4) */}
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Lampiran Berkas Bukti (PDF, PNG, JPEG, JPG, DOCX, TXT - Opsional)
+                  </label>
+                  <div className="relative flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 px-3 py-2 text-xs">
+                    <input
+                      type="file"
+                      accept=".pdf,.png,.jpeg,.jpg,.docx,.txt"
+                      onChange={(e) => handleFileChange(e)}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                      disabled={readingFile}
+                    />
+                    <span className="text-zinc-400 truncate max-w-[170px]">
+                      {fileName || "Pilih berkas..."}
+                    </span>
+                    <button
+                      type="button"
+                      className="px-2.5 py-1 rounded bg-zinc-850 text-[10px] font-bold text-zinc-300"
+                    >
+                      Pilih File
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting || readingFile}
+                  className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-2.5 text-xs font-semibold text-black transition hover:opacity-95 disabled:opacity-50"
+                >
+                  {isSubmitting ? "Menyimpan..." : "Post Balanced Entry"}
+                </button>
+              </form>
+            )}
           </div>
 
           <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6">
@@ -1048,6 +1058,7 @@ export function FinanceLedgerClient({
           fileName={activeViewerFile.name}
           fileData={activeViewerFile.data}
           editedAt={activeViewerFile.editedAt}
+          readOnly={userRole === "HR"}
           onClose={() => setActiveViewerFile(null)}
           onSaveText={async (newText) => {
             const res = await updateJournalEntryAttachmentAction(activeViewerFile.entryId!, newText);

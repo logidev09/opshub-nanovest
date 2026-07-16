@@ -6,6 +6,7 @@ interface FileViewerModalProps {
   fileName: string;
   fileData: string; // base64 string
   editedAt?: string | null;
+  readOnly?: boolean;
   onClose: () => void;
   onSaveText?: (newText: string) => Promise<{ success: boolean; error?: string }>;
 }
@@ -14,6 +15,7 @@ export function FileViewerModal({
   fileName,
   fileData,
   editedAt,
+  readOnly = false,
   onClose,
   onSaveText,
 }: FileViewerModalProps) {
@@ -88,7 +90,7 @@ export function FileViewerModal({
           {isTxt && (
             <div className="flex flex-col h-[50vh] space-y-4">
               <div className="flex justify-between items-center text-[10px] text-zinc-500">
-                <span>Ekstensi file teks dapat langsung disunting:</span>
+                <span>{readOnly ? "File teks (Read-Only):" : "Ekstensi file teks dapat langsung disunting:"}</span>
                 {editedAt && (
                   <span className="text-emerald-400 font-semibold">
                     Terakhir diubah: {new Date(editedAt).toLocaleString("id-ID")}
@@ -97,8 +99,9 @@ export function FileViewerModal({
               </div>
               <textarea
                 value={textVal}
+                readOnly={readOnly}
                 onChange={(e) => setTextVal(e.target.value)}
-                className="flex-1 w-full rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-xs font-mono text-zinc-300 outline-none focus:border-emerald-500/80 resize-none leading-relaxed"
+                className={`flex-1 w-full rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-xs font-mono text-zinc-300 outline-none focus:border-emerald-500/80 resize-none leading-relaxed ${readOnly ? "cursor-not-allowed text-zinc-500" : ""}`}
               />
             </div>
           )}
@@ -128,7 +131,7 @@ export function FileViewerModal({
             >
               Tutup
             </button>
-            {isTxt && onSaveText && (
+            {isTxt && onSaveText && !readOnly && (
               <button
                 onClick={handleSave}
                 disabled={saving}

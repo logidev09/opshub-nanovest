@@ -9,7 +9,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [division, setDivision] = useState("CX Engineer");
+  const [division, setDivision] = useState("Accounting");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -162,12 +162,13 @@ export default function RegisterPage() {
                 onChange={(e) => setDivision(e.target.value)}
                 className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition duration-200 focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/80"
               >
-                <option value="Accounting">Accounting</option>
-                <option value="Quality Assurance">Quality Assurance</option>
+                <option value="Accounting">Accounting (Employee)</option>
+                <option value="Quality Assurance">Quality Assurance (Employee)</option>
                 <option value="Security Operations & IT Support">
-                  Security Operations & IT Support
+                  Security Operations & IT Support (Employee)
                 </option>
-                <option value="CX Engineer">CX Engineer</option>
+                <option value="HR">HR (HR Specialist)</option>
+                <option value="CX Engineer">CX Engineer (Admin - Persetujuan Utama)</option>
               </select>
             </div>
 

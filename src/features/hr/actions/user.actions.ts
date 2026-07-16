@@ -338,3 +338,56 @@ export async function updateUserDivisionAction(userId: string, division: string)
     return { success: false, error: getErrorMessage(error, "Gagal mengubah divisi akun.") };
   }
 }
+
+export async function approveUserRegisterAction(userId: string, approve: boolean) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+
+  const sessionUser = session.user as SessionUser;
+  if (sessionUser.role !== "ADMIN") {
+    return { success: false, error: "Hanya admin utama yang dapat memproses persetujuan pendaftaran." };
+  }
+
+  try {
+    if (approve) {
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          isActive: true,
+        },
+        select: { id: true, name: true, email: true },
+      });
+
+      await AuditService.log({
+        userId: sessionUser.id,
+        action: "APPROVE_USER_REGISTRATION",
+        entity: "User",
+        entityId: userId,
+        newValue: { approved: true },
+      });
+
+      revalidatePath("/dashboard/admin");
+      return { success: true, message: `Akun ${updatedUser.name} berhasil disetujui.` };
+    } else {
+      const deletedUser = await prisma.user.delete({
+        where: { id: userId },
+        select: { id: true, name: true },
+      });
+
+      await AuditService.log({
+        userId: sessionUser.id,
+        action: "REJECT_USER_REGISTRATION",
+        entity: "User",
+        entityId: userId,
+        newValue: { approved: false },
+      });
+
+      revalidatePath("/dashboard/admin");
+      return { success: true, message: `Pendaftaran ${deletedUser.name} berhasil ditolak.` };
+    }
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error, "Gagal memproses pendaftaran.") };
+  }
+}

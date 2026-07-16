@@ -96,58 +96,66 @@ async function main() {
   const users = await Promise.all([
     prisma.user.upsert({
       where: { email: "admin@nanovest.io" },
-      update: {},
+      update: { division: "CX Engineer", role: "ADMIN" },
       create: {
         email: "admin@nanovest.io",
         name: "Admin OpsHub",
         password: hashedPassword,
         role: "ADMIN",
+        division: "CX Engineer",
       },
     }),
     prisma.user.upsert({
       where: { email: "hr@nanovest.io" },
-      update: {},
+      update: { division: "HR", role: "HR" },
       create: {
         email: "hr@nanovest.io",
         name: "HR Specialist",
         password: hashedPassword,
         role: "HR",
+        division: "HR",
       },
     }),
     prisma.user.upsert({
-      where: { email: "user@nanovest.io" },
-      update: {},
+      where: { email: "accountant@nanovest.io" },
+      update: { division: "Accounting", role: "USER" },
       create: {
-        email: "user@nanovest.io",
-        name: "John Doe",
+        email: "accountant@nanovest.io",
+        name: "Accountant Demo",
         password: hashedPassword,
         role: "USER",
+        division: "Accounting",
       },
     }),
     prisma.user.upsert({
-      where: { email: "sarah@nanovest.io" },
-      update: {},
+      where: { email: "qa@nanovest.io" },
+      update: { division: "Quality Assurance", role: "USER" },
       create: {
-        email: "sarah@nanovest.io",
-        name: "Sarah Wijaya",
+        email: "qa@nanovest.io",
+        name: "QA Tester Demo",
         password: hashedPassword,
         role: "USER",
+        division: "Quality Assurance",
       },
     }),
     prisma.user.upsert({
-      where: { email: "budi@nanovest.io" },
-      update: {},
+      where: { email: "secops@nanovest.io" },
+      update: { division: "Security Operations & IT Support", role: "USER" },
       create: {
-        email: "budi@nanovest.io",
-        name: "Budi Santoso",
+        email: "secops@nanovest.io",
+        name: "SecOps Engineer Demo",
         password: hashedPassword,
         role: "USER",
+        division: "Security Operations & IT Support",
       },
     }),
   ]);
 
-  const [admin, hr, employee, sarah, budi] = users;
-  console.log("Seeded/Loaded demo users.");
+  const [admin, hr, accountant, qa, secops] = users;
+  const employee = accountant;
+  const sarah = qa;
+  const budi = secops;
+  console.log("Seeded/Loaded demo users (Admin, HR, Accountant, QA, SecOps).");
 
   await seedPolicies([
     {

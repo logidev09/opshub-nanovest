@@ -124,7 +124,7 @@ function LoginForm() {
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3 text-center">
           Akun Demo Cepat
         </p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           <button
             type="button"
             onClick={() => handleQuickLogin("admin@nanovest.io")}
@@ -141,10 +141,24 @@ function LoginForm() {
           </button>
           <button
             type="button"
-            onClick={() => handleQuickLogin("user@nanovest.io")}
+            onClick={() => handleQuickLogin("accountant@nanovest.io")}
             className="rounded-lg bg-zinc-950 border border-zinc-800 py-2 px-1 text-[11px] font-medium text-emerald-400 hover:bg-zinc-900 transition"
           >
-            Employee
+            Accountant
+          </button>
+          <button
+            type="button"
+            onClick={() => handleQuickLogin("qa@nanovest.io")}
+            className="rounded-lg bg-zinc-950 border border-zinc-800 py-2 px-1 text-[11px] font-medium text-emerald-400 hover:bg-zinc-900 transition"
+          >
+            QA Tester
+          </button>
+          <button
+            type="button"
+            onClick={() => handleQuickLogin("secops@nanovest.io")}
+            className="rounded-lg bg-zinc-950 border border-zinc-800 py-2 px-1 text-[11px] font-medium text-emerald-400 hover:bg-zinc-900 transition col-span-2 sm:col-span-1"
+          >
+            SecOps Eng
           </button>
         </div>
         <p className="text-[10px] text-zinc-500 text-center mt-3">

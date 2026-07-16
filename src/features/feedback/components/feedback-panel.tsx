@@ -28,6 +28,7 @@ interface FeedbackPanelProps {
   module: FeedbackModule;
   userRole: string;
   feedbackItems: FeedbackItem[];
+  isReadOnly?: boolean;
 }
 
 function formatCategory(category: FeedbackCategory) {
@@ -54,7 +55,7 @@ function parseFeedbackMessage(fullMessage: string) {
   };
 }
 
-export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanelProps) {
+export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = false }: FeedbackPanelProps) {
   const router = useRouter();
   const [category, setCategory] = useState<FeedbackCategory>("UI_UX");
   const [message, setMessage] = useState("");
@@ -197,70 +198,78 @@ export function FeedbackPanel({ module, userRole, feedbackItems }: FeedbackPanel
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Kategori
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as FeedbackCategory)}
-              className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-200 outline-none focus:border-emerald-500"
-            >
-              {["BUG", "UI_UX", "CONNECTION", "SECURITY", "TEST_CASE", "FEATURE_REQUEST"].map((item) => (
-                <option key={item} value={item}>
-                  {formatCategory(item as FeedbackCategory)}
-                </option>
-              ))}
-            </select>
+        {isReadOnly ? (
+          <div className="rounded-xl border border-zinc-850 bg-zinc-950/40 p-6 text-center text-xs text-zinc-500 space-y-2">
+            <span className="text-lg block">🔒</span>
+            <p className="font-semibold text-zinc-400">Mode Lihat-Saja (Read-Only)</p>
+            <p>Anda diizinkan melihat riwayat masukan ini, namun tidak memiliki hak untuk menambahkan atau mengirim feedback baru untuk modul ini.</p>
           </div>
-          
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Feedback
-            </label>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={4}
-              placeholder="Jelaskan detail feedback Anda..."
-              className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-emerald-500"
-            />
-          </div>
-
-          {/* Attachment Upload Field */}
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Lampiran File (PNG, JPEG, PDF, DOCX, TXT)
-            </label>
-            <div className="relative flex items-center justify-between border border-zinc-850 rounded-xl bg-zinc-950 px-3.5 py-2">
-              <input
-                type="file"
-                accept=".png,.jpeg,.jpg,.pdf,.docx,.txt"
-                onChange={handleFileChange}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                disabled={readingFile}
-              />
-              <span className="text-xs text-zinc-400 truncate max-w-[200px]">
-                {fileName || "Pilih berkas..."}
-              </span>
-              <button
-                type="button"
-                className="px-3 py-1.5 rounded-lg bg-zinc-800 text-[10px] font-bold text-zinc-300 transition"
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Kategori
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as FeedbackCategory)}
+                className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-200 outline-none focus:border-emerald-500"
               >
-                {readingFile ? "Membaca..." : "Pilih File"}
-              </button>
+                {["BUG", "UI_UX", "CONNECTION", "SECURITY", "TEST_CASE", "FEATURE_REQUEST"].map((item) => (
+                  <option key={item} value={item}>
+                    {formatCategory(item as FeedbackCategory)}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
+            
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Feedback
+              </label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={4}
+                placeholder="Jelaskan detail feedback Anda..."
+                className="w-full rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-emerald-500"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting || !message.trim() || readingFile}
-            className="w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-black transition hover:opacity-95 disabled:opacity-50"
-          >
-            {isSubmitting ? "Mengirim..." : "Kirim Feedback"}
-          </button>
-        </form>
+            {/* Attachment Upload Field */}
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Lampiran File (PNG, JPEG, PDF, DOCX, TXT)
+              </label>
+              <div className="relative flex items-center justify-between border border-zinc-850 rounded-xl bg-zinc-950 px-3.5 py-2">
+                <input
+                  type="file"
+                  accept=".png,.jpeg,.jpg,.pdf,.docx,.txt"
+                  onChange={handleFileChange}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                  disabled={readingFile}
+                />
+                <span className="text-xs text-zinc-400 truncate max-w-[200px]">
+                  {fileName || "Pilih berkas..."}
+                </span>
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-lg bg-zinc-800 text-[10px] font-bold text-zinc-300 transition"
+                >
+                  {readingFile ? "Membaca..." : "Pilih File"}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting || !message.trim() || readingFile}
+              className="w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-black transition hover:opacity-95 disabled:opacity-50"
+            >
+              {isSubmitting ? "Mengirim..." : "Kirim Feedback"}
+            </button>
+          </form>
+        )}
       </div>
 
       <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6 flex flex-col h-[70vh]">

@@ -71,13 +71,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ...(sessionUser?.role === "HR" || sessionUser?.role === "ADMIN" || sessionUser?.division === "HR"
       ? [{ name: "HR Copilot (AI)", href: "/dashboard/hr", icon: IconHr }]
       : []),
-    ...(sessionUser?.division === "Accounting" || sessionUser?.role === "ADMIN"
+    ...(sessionUser?.division === "Accounting" || sessionUser?.role === "ADMIN" || sessionUser?.role === "HR"
       ? [{ name: "Finance Ledger", href: "/dashboard/finance", icon: IconFinance }]
       : []),
-    ...(sessionUser?.division === "Quality Assurance" || sessionUser?.role === "ADMIN"
+    ...(sessionUser?.division === "Quality Assurance" || sessionUser?.role === "ADMIN" || sessionUser?.division === "Security Operations & IT Support"
       ? [{ name: "QA Lab", href: "/dashboard/qa", icon: IconQa }]
       : []),
-    ...(sessionUser?.division === "Security Operations & IT Support" || sessionUser?.role === "ADMIN"
+    ...(sessionUser?.division === "Security Operations & IT Support" || sessionUser?.role === "ADMIN" || sessionUser?.division === "Quality Assurance"
       ? [{ name: "SecOps", href: "/dashboard/security", icon: IconSecurity }]
       : []),
     ...(sessionUser?.role === "ADMIN"

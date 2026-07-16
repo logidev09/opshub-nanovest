@@ -30,10 +30,15 @@ export default async function SecurityPage() {
   if (!session) redirect("/");
   
   const sessionUser = session.user as SessionUser;
-  if (sessionUser.role !== "ADMIN" && sessionUser.division !== "Security Operations & IT Support") {
+  if (
+    sessionUser.role !== "ADMIN" &&
+    sessionUser.division !== "Security Operations & IT Support" &&
+    sessionUser.division !== "Quality Assurance"
+  ) {
     redirect("/dashboard");
   }
   
+  const isReadOnly = sessionUser.role !== "ADMIN" && sessionUser.division !== "Security Operations & IT Support";
   const userRole = sessionUser.role || "USER";
 
   const feedbackItems = await prisma.systemFeedback.findMany({
@@ -65,7 +70,7 @@ export default async function SecurityPage() {
         </div>
       </div>
 
-      <SecuritySimulator />
+      <SecuritySimulator isReadOnly={isReadOnly} />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
@@ -95,6 +100,7 @@ export default async function SecurityPage() {
       <FeedbackPanel
         module="SECOPS"
         userRole={userRole}
+        isReadOnly={isReadOnly}
         feedbackItems={feedbackItems.map((item) => ({
           id: item.id,
           category: item.category,

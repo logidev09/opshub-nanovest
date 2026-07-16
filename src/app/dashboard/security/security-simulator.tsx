@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export function SecuritySimulator() {
+export function SecuritySimulator({ isReadOnly = false }: { isReadOnly?: boolean }) {
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanResults, setScanResults] = useState<{check: string; status: string}[]>([]);
@@ -21,6 +21,7 @@ export function SecuritySimulator() {
   ];
 
   const scanSecurity = () => {
+    if (isReadOnly) return;
     setIsScanning(true);
     setScanProgress(0);
     setScanResults([]);
@@ -56,11 +57,11 @@ export function SecuritySimulator() {
         </div>
         <button
           onClick={scanSecurity}
-          disabled={isScanning}
+          disabled={isScanning || isReadOnly}
           className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          {isScanning ? "Scanning..." : "Audit Security Compliance"}
+          {isReadOnly ? "Scan Compliance (Disabled)" : isScanning ? "Scanning..." : "Audit Security Compliance"}
         </button>
       </div>
 
