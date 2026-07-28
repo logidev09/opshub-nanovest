@@ -68,7 +68,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ...(sessionUser?.role === "ADMIN" || sessionUser?.division === "CX Engineer"
       ? [{ name: "Overview", href: "/dashboard", icon: IconHome }]
       : []),
-    [{ name: "HR Copilot (AI)", href: "/dashboard/hr", icon: IconHr }],
+    { name: "HR Copilot (AI)", href: "/dashboard/hr", icon: IconHr },
     ...(sessionUser?.division === "Accounting" || sessionUser?.role === "ADMIN" || sessionUser?.role === "HR"
       ? [{ name: "Finance Ledger", href: "/dashboard/finance", icon: IconFinance }]
       : []),
