@@ -906,7 +906,7 @@ export function HrDashboardClient({
         <button
           type="button"
           onClick={() => setIsMobileSidePanelOpen(!isMobileSidePanelOpen)}
-          className="h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-2xl shadow-2xl flex items-center justify-center border border-emerald-300/50 cursor-pointer active:scale-95 transition"
+          className="h-16 w-16 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-3xl shadow-2xl flex items-center justify-center border border-emerald-300/50 cursor-pointer active:scale-95 transition"
           title="Buka AI Copilot Chat"
         >
           {isMobileSidePanelOpen ? "✕" : "💬"}
@@ -917,7 +917,7 @@ export function HrDashboardClient({
       {isMobileSidePanelOpen && (
         <div
           style={{ position: "fixed", bottom: "90px", right: "24px", zIndex: 99998 }}
-          className="w-[calc(100vw-32px)] sm:w-[400px] h-[520px] max-h-[80vh] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-white"
+          className="w-[340px] sm:w-[360px] h-[520px] max-h-[80vh] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-white"
         >
           {/* Header */}
           <div className="px-4 py-3 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between shrink-0">

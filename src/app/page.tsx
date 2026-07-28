@@ -204,12 +204,15 @@ export default function Home() {
       {/* Cafe Popup - Bottom Right */}
       {showPopup && (
         <div className="fixed bottom-4 right-4 z-50">
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 backdrop-blur-xl p-3 shadow-2xl max-w-[280px]">
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 backdrop-blur-xl p-3 shadow-2xl max-w-[300px]">
             <div className="flex justify-between items-start mb-2">
-              <h3 className="text-sm font-semibold text-white">Website Pemesanan Cafe + AI Chat</h3>
+              <div className="flex items-center gap-1.5">
+                <span className="text-base">☕</span>
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Website Pemesanan Cafe + AI Chat</h3>
+              </div>
               <button
                 onClick={() => setShowPopup(false)}
-                className="text-zinc-400 hover:text-white transition ml-2"
+                className="text-zinc-400 hover:text-white transition ml-2 cursor-pointer"
                 aria-label="Tutup"
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -221,9 +224,9 @@ export default function Home() {
               href={cafeUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-sm text-emerald-400 hover:text-emerald-300 transition underline"
+              className="text-xs text-emerald-400 hover:text-emerald-300 transition underline font-mono flex items-center gap-1"
             >
-              {cafeUrl}
+              ☕ {cafeUrl}
             </Link>
           </div>
         </div>

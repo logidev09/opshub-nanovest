@@ -13,6 +13,9 @@ import {
   approveJournalEditPermissionAction,
   getJournalEditPermissionStatusAction,
   undoJournalEntryRevisionAction,
+  submitDraftJournalChangesAction,
+  ratifyDraftJournalChangesAction,
+  getPendingDraftJournalChangesAction,
   JournalLineInput,
 } from "@/features/finance/actions/ledger.actions";
 import { exportToCSV } from "@/features/shared/lib/export";
@@ -344,12 +347,78 @@ export function FinanceLedgerClient({
     setIsEditModalOpen(true);
   };
 
+  // Pending Drafts for Accountant / Admin Ratification Workflow (Item 2)
+  const [pendingDrafts, setPendingDrafts] = useState<Array<{ id: string; data: any }>>([]);
+  const [draftBatchStatus, setDraftBatchStatus] = useState<string>("NONE");
+  const [isSubmittingDrafts, setIsSubmittingDrafts] = useState(false);
+
+  useEffect(() => {
+    async function loadPendingDrafts() {
+      const res = await getPendingDraftJournalChangesAction();
+      if (res.success && res.status === "DRAFT_PENDING" && res.drafts) {
+        setDraftBatchStatus("DRAFT_PENDING");
+        try {
+          setPendingDrafts(JSON.parse(res.drafts));
+        } catch (e) {}
+      }
+    }
+    loadPendingDrafts();
+  }, []);
+
+  const handleAccountantSubmitDraftsToAdmin = async () => {
+    if (pendingDrafts.length === 0) return;
+    setIsSubmittingDrafts(true);
+    const res = await submitDraftJournalChangesAction(JSON.stringify(pendingDrafts));
+    setIsSubmittingDrafts(false);
+    if (res.success) {
+      setDraftBatchStatus("DRAFT_PENDING");
+      alert(res.message);
+      router.refresh();
+    } else {
+      alert(res.error || "Gagal mengajukan draft perubahan.");
+    }
+  };
+
+  const handleAdminRatifyDrafts = async (approved: boolean) => {
+    if (!confirm(approved ? "Sahkan dan terapkan seluruh draft perubahan jurnal ini secara publik?" : "Tolak permohonan draft perubahan jurnal ini?")) return;
+    const res = await ratifyDraftJournalChangesAction(approved);
+    if (res.success) {
+      setDraftBatchStatus("NONE");
+      setPendingDrafts([]);
+      alert(res.message);
+      router.refresh();
+    } else {
+      alert(res.error || "Gagal memproses pengesahan draft.");
+    }
+  };
+
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEntry) return;
 
     if (!editDescription.trim()) {
       alert("Deskripsi jurnal wajib diisi.");
+      return;
+    }
+
+    if (userRole !== "ADMIN") {
+      const updatedDraft = {
+        id: editingEntry.id,
+        data: {
+          entryDate: editEntryDate,
+          description: editDescription.trim(),
+          lines: editFormLines,
+          attachmentName: editAttachedFiles[0]?.name,
+          attachmentData: editAttachedFiles[0]?.data,
+        },
+      };
+      setPendingDrafts((prev) => {
+        const filtered = prev.filter((d) => d.id !== editingEntry.id);
+        return [...filtered, updatedDraft];
+      });
+      setIsEditModalOpen(false);
+      setEditingEntry(null);
+      alert("Perubahan disunting sementara di akun Accountant Anda. Silakan klik 'Simpan & Ajukan Pengesahan ke Admin' di bagian bawah Recent Journal Entries untuk mengirimkan ke Admin.");
       return;
     }
 
@@ -957,14 +1026,14 @@ export function FinanceLedgerClient({
                               prev.map((l, i) => (i === idx ? { ...l, side: val } : l))
                             );
                           }}
-                          className={`w-full rounded-lg border px-2 py-1.5 text-xs font-bold outline-none ${
+                          className={`w-full rounded-lg border px-2 py-1.5 text-xs font-bold outline-none [color-scheme:dark] ${
                             line.side === "DEBIT"
                               ? "border-emerald-500/30 bg-emerald-950/40 text-emerald-400"
                               : "border-amber-500/30 bg-amber-950/40 text-amber-400"
                           }`}
                         >
-                          <option value="DEBIT">DEBIT</option>
-                          <option value="CREDIT">CREDIT</option>
+                          <option value="DEBIT" className="bg-zinc-950 text-emerald-400 font-bold">DEBIT</option>
+                          <option value="CREDIT" className="bg-zinc-950 text-amber-400 font-bold">CREDIT</option>
                         </select>
                       </div>
 
@@ -977,10 +1046,10 @@ export function FinanceLedgerClient({
                               prev.map((l, i) => (i === idx ? { ...l, financeAccountId: val } : l))
                             );
                           }}
-                          className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-white outline-none"
+                          className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-white outline-none [color-scheme:dark]"
                         >
                           {ledgerAccounts.map((account) => (
-                            <option key={account.id} value={account.id}>
+                            <option key={account.id} value={account.id} className="bg-zinc-950 text-zinc-100">
                               {account.code} {account.name}
                             </option>
                           ))}
@@ -1062,10 +1131,40 @@ export function FinanceLedgerClient({
           </div>
 
           <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6">
+            {/* Admin Ratification Banner for Accountant Draft Changes (Item 2) */}
+            {userRole === "ADMIN" && draftBatchStatus === "DRAFT_PENDING" && (
+              <div className="mb-4 p-4 border border-emerald-500/40 bg-emerald-950/30 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow-lg">
+                <div>
+                  <span className="font-bold text-emerald-400 text-xs block">
+                    ⚖️ Permohonan Pengesahan Perubahan Jurnal dari Accountant
+                  </span>
+                  <p className="text-[11px] text-zinc-300">
+                    Accountant telah mengajukan draft perubahan pada entri jurnal. Sahkan untuk menerapkan secara resmi ke seluruh publik.
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminRatifyDrafts(true)}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-500 text-black font-bold text-xs hover:bg-emerald-400 transition cursor-pointer"
+                  >
+                    ✔️ Sahkan & Terapkan Jurnal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAdminRatifyDrafts(false)}
+                    className="px-3 py-1.5 rounded-xl bg-rose-500 text-white font-bold text-xs hover:bg-rose-400 transition cursor-pointer"
+                  >
+                    ✕ Tolak Draft
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="text-base font-bold text-white">Recent Journal Entries</h3>
 
-              {/* Edit Permission Workflow (Requirement 3 & 4) */}
+              {/* Edit Permission Workflow */}
               {userRole !== "HR" && userRole !== "ADMIN" && (
                 <div>
                   {editPermStatus === "NONE" || editPermStatus === "REJECTED" ? (
@@ -1117,14 +1216,26 @@ export function FinanceLedgerClient({
                 <div className="text-zinc-500 text-xs text-center py-4">Belum ada jurnal masuk.</div>
               ) : (
                 entries.map((entry) => {
-                  const { cleanDescription, revisions } = parseJournalRevisions(entry.description);
+                  const draftForEntry = pendingDrafts.find((d) => d.id === entry.id);
+                  const displayDate = draftForEntry?.data?.entryDate || entry.entryDate;
+                  const displayRawDesc = draftForEntry?.data?.description || entry.description;
+
+                  const { cleanDescription, revisions } = parseJournalRevisions(displayRawDesc);
                   const { text, attachments } = parseAttachments(cleanDescription);
                   const lastEdited = revisions.length > 0 ? revisions[revisions.length - 1].editedAt : null;
                   const canEdit = userRole === "ADMIN" || (userRole !== "HR" && editPermStatus === "APPROVED");
                   const showRevisions = userRole === "ADMIN" || (userRole !== "HR" && editPermStatus === "APPROVED");
 
                   return (
-                    <div key={entry.id} className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
+                    <div key={entry.id} className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4 relative">
+                      {draftForEntry && userRole !== "HR" && (
+                        <div className="mb-2">
+                          <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30">
+                            ⏳ Draft Disunting (Belum Disahkan Admin)
+                          </span>
+                        </div>
+                      )}
+
                       <div className="mb-2 flex items-start justify-between gap-4">
                         <div>
                           <div className="flex items-center gap-2">
@@ -1147,7 +1258,7 @@ export function FinanceLedgerClient({
                           </div>
                           <p className="text-xs text-zinc-300 mt-1">{text}</p>
                           <div className="flex flex-wrap gap-3 text-[10px] text-zinc-500 mt-1 font-mono">
-                            <span>Di-entry: {new Date(entry.entryDate).toLocaleDateString("id-ID")}</span>
+                            <span>Di-entry: {new Date(displayDate).toLocaleDateString("id-ID")}</span>
                             {showRevisions && lastEdited && (
                               <span className="text-emerald-400">
                                 Disunting: {new Date(lastEdited).toLocaleString("id-ID")}
@@ -1229,6 +1340,28 @@ export function FinanceLedgerClient({
                 })
               )}
             </div>
+
+            {/* Accountant Submit Draft Changes to Admin Button (Item 2) */}
+            {userRole === "ACCOUNTANT" && pendingDrafts.length > 0 && (
+              <div className="mt-4 p-4 border border-amber-500/30 bg-amber-950/20 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow-lg">
+                <div>
+                  <span className="font-bold text-amber-400 text-xs block">
+                    🚀 Pengajuan Pengesahan Perubahan Jurnal ({pendingDrafts.length} Entri Disunting)
+                  </span>
+                  <p className="text-[11px] text-zinc-400">
+                    Perubahan sementara tersimpan di akun Anda. Klik tombol di kanan agar Admin dapat memverifikasi dan mempublikasikannya secara resmi.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAccountantSubmitDraftsToAdmin}
+                  disabled={isSubmittingDrafts}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 text-black font-bold text-xs hover:opacity-95 disabled:opacity-50 shrink-0 cursor-pointer"
+                >
+                  {isSubmittingDrafts ? "Mengajukan..." : "Simpan & Ajukan Pengesahan ke Admin"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1236,7 +1369,7 @@ export function FinanceLedgerClient({
       {/* Floating Chat Widget */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
         {isChatOpen && (
-          <div className="mb-4 w-80 md:w-96 h-[480px] rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl">
+          <div className="mb-4 w-[340px] sm:w-[360px] h-[480px] rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl">
             {/* Header */}
             <div className="px-4 py-3 bg-zinc-900/60 border-b border-zinc-900 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1246,7 +1379,7 @@ export function FinanceLedgerClient({
               <button
                 type="button"
                 onClick={() => setIsChatOpen(false)}
-                className="text-zinc-400 hover:text-white transition text-xs"
+                className="text-zinc-400 hover:text-white transition text-xs cursor-pointer"
               >
                 ✕
               </button>
@@ -1297,7 +1430,7 @@ export function FinanceLedgerClient({
               <button
                 type="submit"
                 disabled={!chatInput.trim() || chatLoading}
-                className="px-3 rounded-xl bg-emerald-500 text-black hover:opacity-95 disabled:opacity-50 font-bold"
+                className="px-3 rounded-xl bg-emerald-500 text-black hover:opacity-95 disabled:opacity-50 font-bold cursor-pointer"
               >
                 Kirim
               </button>
@@ -1308,7 +1441,7 @@ export function FinanceLedgerClient({
         <button
           type="button"
           onClick={() => setIsChatOpen(!isChatOpen)}
-          className="h-16 w-16 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center text-black font-bold text-2xl shadow-xl hover:scale-105 active:scale-95 transition cursor-pointer"
+          className="h-16 w-16 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center text-black font-extrabold text-3xl shadow-2xl hover:scale-105 active:scale-95 transition cursor-pointer"
           title="Tanya Finance AI"
         >
           💬
