@@ -407,22 +407,23 @@ export function FinanceLedgerClient({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-5 text-xs font-semibold">
-          {[
-            { title: "Total Assets (Aset)", value: asset },
-            { title: "Total Liabilities (Liabilitas)", value: liability },
-            { title: "Total Equity (Ekuitas)", value: equity },
-            { title: "Total Revenue (Pendapatan)", value: revenue },
-            { title: "Total Expenses (Beban)", value: expense },
-          ].map((item) => (
-            <div key={item.title} className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-3">
-              <span className="mb-1 block text-emerald-400 text-[11px]">{item.title}</span>
-              <span className="font-medium text-zinc-200">{formatCurrency(item.value)}</span>
-            </div>
-          ))}
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-5 grid grid-cols-2 gap-3 text-xs font-semibold">
+            {[
+              { title: "Total Assets (Aset)", value: asset },
+              { title: "Total Liabilities (Liabilitas)", value: liability },
+              { title: "Total Equity (Ekuitas)", value: equity },
+              { title: "Total Revenue (Pendapatan)", value: revenue },
+              { title: "Total Expenses (Beban)", value: expense },
+            ].map((item, idx) => (
+              <div key={item.title} className={`rounded-xl border border-zinc-900 bg-zinc-950/60 p-3 ${idx === 4 ? 'col-span-2 sm:col-span-1' : ''}`}>
+                <span className="mb-1 block text-emerald-400 text-[11px]">{item.title}</span>
+                <span className="font-medium text-zinc-200">{formatCurrency(item.value)}</span>
+              </div>
+            ))}
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center pt-2">
+          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
           {/* Balance Sheet Donut Chart */}
           <div className="md:col-span-5 flex flex-col items-center justify-center p-4 border border-zinc-900 rounded-xl bg-zinc-950/30">
             <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Balance Sheet Structure</h4>
@@ -543,6 +544,7 @@ export function FinanceLedgerClient({
                 {formatCurrency(revenue - expense)}
               </span>
             </div>
+          </div>
           </div>
         </div>
       </div>

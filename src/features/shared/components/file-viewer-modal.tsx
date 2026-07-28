@@ -77,7 +77,7 @@ export function FileViewerModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh] overflow-hidden relative z-[101]">
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl max-w-4xl w-full flex flex-col h-[90vh] sm:h-[85vh] overflow-hidden relative z-[101]">
         {/* Header */}
         <div className="px-5 py-3.5 bg-zinc-950/80 border-b border-zinc-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -110,13 +110,22 @@ export function FileViewerModal({
           )}
 
           {isPdf && (
-            <div className="h-[60vh] sm:h-[65vh] w-full rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950 flex flex-col">
+            <div className="flex-1 w-full min-h-[50vh] h-full rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950 flex flex-col relative">
               {pdfBlobUrl ? (
-                <iframe
-                  src={pdfBlobUrl}
-                  title={fileName}
+                <object
+                  data={pdfBlobUrl}
+                  type="application/pdf"
                   className="w-full h-full border-0 rounded-xl"
-                />
+                >
+                  <div className="flex flex-col items-center justify-center h-full text-zinc-400 space-y-3 p-6 text-center">
+                    <span className="text-3xl">📄</span>
+                    <p className="text-sm font-semibold text-zinc-200">PDF Tidak Dapat Ditampilkan</p>
+                    <p className="text-xs">Browser Anda mungkin tidak mendukung pratinjau PDF bawaan.</p>
+                    <a href={`data:application/octet-stream;base64,${fileData}`} download={fileName} className="px-4 py-2 mt-2 text-xs font-semibold rounded-lg bg-emerald-500 text-black hover:bg-emerald-400 transition">
+                      Unduh PDF
+                    </a>
+                  </div>
+                </object>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-zinc-400 space-y-2">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />

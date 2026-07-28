@@ -460,20 +460,13 @@ export function HrDashboardClient({
   return (
     <div className="flex flex-col lg:flex-row gap-8 items-start w-full relative">
       {/* Floating Action Button in Bottom Right Corner (Mobile/Tablet View - Task 1) */}
-      <div className="fixed bottom-6 right-6 z-40 lg:hidden">
+      <div className="fixed bottom-6 right-6 z-40 lg:hidden flex flex-col items-end">
         <button
           type="button"
           onClick={() => setIsMobileSidePanelOpen(!isMobileSidePanelOpen)}
-          className="px-4 py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs transition active:scale-95 shadow-2xl flex items-center gap-2 border border-emerald-300/50 cursor-pointer"
+          className="h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-2xl transition active:scale-95 shadow-2xl flex items-center justify-center border border-emerald-300/50 cursor-pointer"
         >
-          {isMobileSidePanelOpen ? (
-            <>✕ Tutup Side Panel</>
-          ) : (
-            <>
-              💬 Buka Side Panel 💬
-              <span className="h-2 w-2 rounded-full bg-black animate-ping" />
-            </>
-          )}
+          {isMobileSidePanelOpen ? "✕" : "💬"}
         </button>
       </div>
 
@@ -740,8 +733,8 @@ export function HrDashboardClient({
       <div
         className={`transition-all duration-300 overflow-hidden ${
           isMobileSidePanelOpen
-            ? "fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[460px] bg-zinc-950/95 border-l border-zinc-800 shadow-2xl flex flex-col h-full lg:static lg:z-auto lg:w-[440px] xl:w-[480px] lg:h-[80vh] lg:rounded-2xl lg:border lg:border-zinc-900 lg:bg-zinc-900/20 lg:backdrop-blur-xl lg:sticky lg:top-20"
-            : "hidden lg:flex lg:w-[440px] xl:w-[480px] shrink-0 border border-zinc-900 bg-zinc-900/20 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl flex-col h-[80vh] sticky top-20"
+            ? "fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[400px] bg-zinc-950/95 border-l border-zinc-800 shadow-2xl flex flex-col h-full lg:static lg:z-auto lg:w-[400px] xl:w-[440px] lg:h-[80vh] lg:rounded-2xl lg:border lg:border-zinc-900 lg:bg-zinc-900/20 lg:backdrop-blur-xl lg:sticky lg:top-20"
+            : "hidden lg:flex lg:w-[400px] xl:w-[440px] shrink-0 border border-zinc-900 bg-zinc-900/20 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl flex-col h-[80vh] sticky top-20"
         }`}
       >
         {/* Horizontal Tabs Header */}
