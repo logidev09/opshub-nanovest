@@ -396,124 +396,117 @@ export function FinanceLedgerClient({
         </div>
       )}
 
-      {/* Consolidated Accounting Requirement Showcase & Visual Breakdown Card */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 md:p-8 backdrop-blur-xl space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-zinc-900 pb-4">
+      {/* Visual Charts & Trial Balance Section (Side-by-Side like Overview Page) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Card 1 (Left): Trial Balance Real-Time Metrics */}
+        <div className="rounded-2xl border border-zinc-900 bg-zinc-900/30 backdrop-blur-xl p-6 shadow-xl space-y-4 flex flex-col justify-between">
           <div>
-            <h3 className="text-base font-bold text-white">Nanovest Accounting Requirement Showcase & Financial Visualization</h3>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+            <h3 className="text-base font-bold text-white">Nanovest Accounting Requirement Showcase</h3>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
               Modul ini membaca chart of accounts dari database, menghitung total trial balance real-time, dan memvalidasi jurnal balanced secara otomatis.
             </p>
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-semibold">
+            {[
+              { title: "Total Assets (Aset)", value: asset },
+              { title: "Total Liabilities (Liabilitas)", value: liability },
+              { title: "Total Equity (Ekuitas)", value: equity },
+              { title: "Total Revenue (Pendapatan)", value: revenue },
+              { title: "Total Expenses (Beban)", value: expense, colSpan: true },
+            ].map((item) => (
+              <div key={item.title} className={`rounded-xl border border-zinc-900 bg-zinc-950/60 p-3.5 ${item.colSpan ? "sm:col-span-2" : ""}`}>
+                <span className="mb-1 block text-emerald-400 text-[11px]">{item.title}</span>
+                <span className="font-medium text-zinc-200">{formatCurrency(item.value)}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-5 text-xs font-semibold">
-          {[
-            { title: "Total Assets (Aset)", value: asset },
-            { title: "Total Liabilities (Liabilitas)", value: liability },
-            { title: "Total Equity (Ekuitas)", value: equity },
-            { title: "Total Revenue (Pendapatan)", value: revenue },
-            { title: "Total Expenses (Beban)", value: expense },
-          ].map((item) => (
-            <div key={item.title} className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-3">
-              <span className="mb-1 block text-emerald-400 text-[11px]">{item.title}</span>
-              <span className="font-medium text-zinc-200">{formatCurrency(item.value)}</span>
-            </div>
-          ))}
-        </div>
+        {/* Card 2 (Right): Financial Breakdown Donut & Operating Performance */}
+        <div className="rounded-2xl border border-zinc-900 bg-zinc-900/30 backdrop-blur-xl p-6 shadow-xl space-y-4 flex flex-col justify-between">
+          <div>
+            <h3 className="text-base font-bold text-white mb-1">Financial Breakdown Visualization</h3>
+            <p className="text-xs text-zinc-500">Struktur Balance Sheet dan rasio pendapatan vs pengeluaran ledger.</p>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center pt-2">
-          {/* Balance Sheet Donut Chart */}
-          <div className="md:col-span-5 flex flex-col items-center justify-center p-4 border border-zinc-900 rounded-xl bg-zinc-950/30">
-            <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Balance Sheet Structure</h4>
-            <div className="relative h-40 w-40">
-              <svg className="h-full w-full" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="35" fill="transparent" stroke="#18181b" strokeWidth="10" />
-                {asset > 0 && (
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="35"
-                    fill="transparent"
-                    stroke="#10b981"
-                    strokeWidth="10"
-                    strokeDasharray={`${(asset / (totalBS || 1)) * 219.9} ${219.9}`}
-                    strokeDashoffset="0"
-                    transform="rotate(-90 50 50)"
-                    strokeLinecap="round"
-                    className="transition-all duration-1000"
-                  />
-                )}
-                {liability > 0 && (
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="35"
-                    fill="transparent"
-                    stroke="#f59e0b"
-                    strokeWidth="10"
-                    strokeDasharray={`${(liability / (totalBS || 1)) * 219.9} ${219.9}`}
-                    strokeDashoffset={`${-((asset / (totalBS || 1)) * 219.9)}`}
-                    transform="rotate(-90 50 50)"
-                    strokeLinecap="round"
-                    className="transition-all duration-1000"
-                  />
-                )}
-                {equity > 0 && (
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="35"
-                    fill="transparent"
-                    stroke="#3b82f6"
-                    strokeWidth="10"
-                    strokeDasharray={`${(equity / (totalBS || 1)) * 219.9} ${219.9}`}
-                    strokeDashoffset={`${-(((asset + liability) / (totalBS || 1)) * 219.9)}`}
-                    transform="rotate(-90 50 50)"
-                    strokeLinecap="round"
-                    className="transition-all duration-1000"
-                  />
-                )}
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-[9px] uppercase font-bold text-zinc-500 tracking-wider">Total BS</span>
-                <span className="text-xs font-extrabold text-white mt-0.5">
-                  {new Intl.NumberFormat("id-ID", { notation: "compact" }).format(totalBS)}
-                </span>
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+            {/* Balance Sheet Donut Chart */}
+            <div className="sm:col-span-5 flex flex-col items-center justify-center p-3 border border-zinc-900 rounded-xl bg-zinc-950/40">
+              <h4 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">BS Structure</h4>
+              <div className="relative h-28 w-28">
+                <svg className="h-full w-full" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="35" fill="transparent" stroke="#18181b" strokeWidth="10" />
+                  {asset > 0 && (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="35"
+                      fill="transparent"
+                      stroke="#10b981"
+                      strokeWidth="10"
+                      strokeDasharray={`${(asset / (totalBS || 1)) * 219.9} ${219.9}`}
+                      strokeDashoffset="0"
+                      transform="rotate(-90 50 50)"
+                      strokeLinecap="round"
+                      className="transition-all duration-1000"
+                    />
+                  )}
+                  {liability > 0 && (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="35"
+                      fill="transparent"
+                      stroke="#f59e0b"
+                      strokeWidth="10"
+                      strokeDasharray={`${(liability / (totalBS || 1)) * 219.9} ${219.9}`}
+                      strokeDashoffset={`${-((asset / (totalBS || 1)) * 219.9)}`}
+                      transform="rotate(-90 50 50)"
+                      strokeLinecap="round"
+                      className="transition-all duration-1000"
+                    />
+                  )}
+                  {equity > 0 && (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="35"
+                      fill="transparent"
+                      stroke="#3b82f6"
+                      strokeWidth="10"
+                      strokeDasharray={`${(equity / (totalBS || 1)) * 219.9} ${219.9}`}
+                      strokeDashoffset={`${-(((asset + liability) / (totalBS || 1)) * 219.9)}`}
+                      transform="rotate(-90 50 50)"
+                      strokeLinecap="round"
+                      className="transition-all duration-1000"
+                    />
+                  )}
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-[8px] uppercase font-bold text-zinc-500">Total BS</span>
+                  <span className="text-[10px] font-extrabold text-white">
+                    {new Intl.NumberFormat("id-ID", { notation: "compact" }).format(totalBS)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-2 flex flex-wrap justify-center gap-2 text-[9px] font-semibold">
+                <span className="text-[#10b981]">A: {totalBS > 0 ? Math.round((asset / totalBS) * 100) : 0}%</span>
+                <span className="text-[#f59e0b]">L: {totalBS > 0 ? Math.round((liability / totalBS) * 100) : 0}%</span>
+                <span className="text-[#3b82f6]">E: {totalBS > 0 ? Math.round((equity / totalBS) * 100) : 0}%</span>
               </div>
             </div>
 
-            <div className="mt-3 flex gap-3 text-[10px] font-semibold">
-              <span className="flex items-center gap-1 text-[#10b981]">
-                <span className="h-2 w-2 rounded bg-emerald-500" />
-                Asset ({totalBS > 0 ? Math.round((asset / totalBS) * 100) : 0}%)
-              </span>
-              <span className="flex items-center gap-1 text-[#f59e0b]">
-                <span className="h-2 w-2 rounded bg-amber-500" />
-                Liability ({totalBS > 0 ? Math.round((liability / totalBS) * 100) : 0}%)
-              </span>
-              <span className="flex items-center gap-1 text-[#3b82f6]">
-                <span className="h-2 w-2 rounded bg-blue-500" />
-                Equity ({totalBS > 0 ? Math.round((equity / totalBS) * 100) : 0}%)
-              </span>
-            </div>
-          </div>
-
-          {/* Operating Profitability Bars */}
-          <div className="md:col-span-7 space-y-4 p-5 border border-zinc-900 rounded-xl bg-zinc-950/30">
-            <div>
-              <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Operating Performance</h4>
-              <p className="text-[10px] text-zinc-500">Perbandingan pendapatan usaha terhadap biaya pengeluaran ledger.</p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-bold text-zinc-300">
-                <span>Revenue vs Expense Ratio</span>
+            {/* Operating Ratio */}
+            <div className="sm:col-span-7 space-y-3 p-3.5 border border-zinc-900 rounded-xl bg-zinc-950/40">
+              <div className="flex justify-between text-[11px] font-bold text-zinc-300">
+                <span>Revenue / Expense</span>
                 <span className="text-emerald-400">
                   {revenue + expense > 0 ? Math.round((revenue / (revenue + expense)) * 100) : 0}% / {revenue + expense > 0 ? Math.round((expense / (revenue + expense)) * 100) : 0}%
                 </span>
               </div>
-              <div className="h-3 w-full rounded-full bg-zinc-900 overflow-hidden flex">
+              <div className="h-2.5 w-full rounded-full bg-zinc-900 overflow-hidden flex">
                 <div
                   style={{ width: `${revenue + expense > 0 ? (revenue / (revenue + expense)) * 100 : 0}%` }}
                   className="bg-emerald-500 transition-all duration-1000"
@@ -523,25 +516,14 @@ export function FinanceLedgerClient({
                   className="bg-rose-500 transition-all duration-1000"
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-3 border-t border-zinc-900/60">
-              <div>
-                <span className="text-[9px] uppercase font-bold text-zinc-500 tracking-wider">Gross Revenue</span>
-                <p className="text-sm font-extrabold text-white mt-0.5">{formatCurrency(revenue)}</p>
+              <div className="pt-2 border-t border-zinc-900/60 flex justify-between items-center text-xs">
+                <span className="text-zinc-500 font-medium text-[10px]">Estimated Profit:</span>
+                <span className={`font-bold ${revenue >= expense ? "text-emerald-400" : "text-rose-400"}`}>
+                  {revenue >= expense ? "+" : ""}
+                  {formatCurrency(revenue - expense)}
+                </span>
               </div>
-              <div>
-                <span className="text-[9px] uppercase font-bold text-zinc-500 tracking-wider">Total Expense</span>
-                <p className="text-sm font-extrabold text-rose-400 mt-0.5">{formatCurrency(expense)}</p>
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-zinc-900/40 flex justify-between items-center text-xs">
-              <span className="text-zinc-500 font-medium text-[11px]">Net Profit/Loss Estimate:</span>
-              <span className={`font-bold ${revenue >= expense ? "text-emerald-400" : "text-rose-400"}`}>
-                {revenue >= expense ? "+" : ""}
-                {formatCurrency(revenue - expense)}
-              </span>
             </div>
           </div>
         </div>

@@ -32,8 +32,9 @@ export async function submitLeaveAction(data: {
 
   const user = session.user as SessionUser;
   const userId = user.id;
+  const isAutoApprove = user.role === "HR" || user.role === "ADMIN";
   try {
-    const result = await HrService.requestLeave(userId, data);
+    const result = await HrService.requestLeave(userId, data, isAutoApprove);
     revalidatePath("/dashboard/hr");
     revalidatePath("/dashboard");
     return { success: true, data: JSON.parse(JSON.stringify(result)) };

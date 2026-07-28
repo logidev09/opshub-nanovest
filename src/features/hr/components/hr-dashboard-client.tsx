@@ -33,6 +33,7 @@ interface LeaveHistoryItem {
   endDate: Date | string;
   userName?: string | null;
   userEmail?: string | null;
+  userId?: string;
   createdAt: Date | string;
   approvedAt?: Date | string | null;
   metadata?: any;
@@ -836,7 +837,7 @@ export function HrDashboardClient({
                             )}
                           </div>
                         )}
-                        {leave.status === LeaveStatus.PENDING && (
+                        {leave.userId === userId && leave.status === LeaveStatus.PENDING && (
                           <button
                             onClick={() => handleLeaveCancel(leave.id)}
                             disabled={cancelLoading === leave.id}
@@ -876,8 +877,8 @@ export function HrDashboardClient({
       {/* Floating AI Chatbot Mini Window */}
       {isMobileSidePanelOpen && (
         <div
-          style={{ position: "fixed", zIndex: 99998 }}
-          className="bottom-20 right-4 sm:right-6 w-[calc(100vw-32px)] sm:w-[400px] h-[520px] max-h-[80vh] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-white"
+          style={{ position: "fixed", bottom: "90px", right: "24px", zIndex: 99998 }}
+          className="w-[calc(100vw-32px)] sm:w-[400px] h-[520px] max-h-[80vh] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-white"
         >
           {/* Header */}
           <div className="px-4 py-3 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between shrink-0">

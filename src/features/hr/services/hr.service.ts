@@ -83,7 +83,8 @@ export class HrService {
       reason?: string;
       attachmentName?: string;
       attachmentData?: string;
-    }
+    },
+    isAutoApprove = false
   ) {
     const start = new Date(data.startDate);
     const end = new Date(data.endDate);
@@ -122,6 +123,7 @@ export class HrService {
       startDate: start,
       endDate: end,
       reason: finalReason || undefined,
+      status: isAutoApprove ? LeaveStatus.APPROVED : LeaveStatus.PENDING,
     });
 
     // Write Centralized Audit Log

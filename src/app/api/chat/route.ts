@@ -210,6 +210,60 @@ export async function POST(request: Request) {
           }
         }
       }
+
+      // ADMIN specific override: Cancel or change any leave status
+      if (sessionUser.role === "ADMIN") {
+        const cancelAdminMatch = userPrompt.match(/(?:batalkan|batal|cancel)\s+cuti\s+([a-zA-Z\s]+)/i);
+        if (cancelAdminMatch) {
+          const namePart = cancelAdminMatch[1].trim();
+          if (namePart && namePart.length > 2) {
+            try {
+              const matchingUsers = await prisma.user.findMany({
+                where: { name: { contains: namePart, mode: "insensitive" } }
+              });
+
+              if (matchingUsers.length > 0) {
+                const userIds = matchingUsers.map((u) => u.id);
+                const targetLeaves = await prisma.leaveRequest.findMany({
+                  where: { userId: { in: userIds } },
+                  include: { user: { select: { name: true } } }
+                });
+
+                if (targetLeaves.length > 0) {
+                  await prisma.leaveRequest.updateMany({
+                    where: { id: { in: targetLeaves.map((l) => l.id) } },
+                    data: { status: "REJECTED" }
+                  });
+
+                  for (const req of targetLeaves) {
+                    await AuditService.log({
+                      userId: sessionUser.id,
+                      action: "ADMIN_CANCEL_LEAVE",
+                      entity: "LeaveRequest",
+                      entityId: req.id,
+                      oldValue: { status: req.status },
+                      newValue: { status: "REJECTED" }
+                    });
+                  }
+
+                  revalidatePath("/dashboard");
+                  revalidatePath("/dashboard/hr");
+
+                  return createStreamFromPlainText(
+                    `[ADMIN ACTION] Berhasil membatalkan (mengubah status menjadi REJECTED) ${targetLeaves.length} pengajuan cuti milik "${targetLeaves[0].user.name}".`,
+                    "admin-cancel-success-" + Date.now()
+                  );
+                }
+              }
+            } catch (err: any) {
+              return createStreamFromPlainText(
+                `Gagal membatalkan pengajuan cuti secara admin. Detail: ${err.message || err}`,
+                "admin-cancel-error-" + Date.now()
+              );
+            }
+          }
+        }
+      }
     }
 
     const autoLeaveIntent = extractLeaveIntent(userPrompt);

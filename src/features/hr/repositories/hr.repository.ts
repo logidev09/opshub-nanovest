@@ -89,7 +89,9 @@ export class HrRepository {
     startDate: Date;
     endDate: Date;
     reason?: string;
+    status?: LeaveStatus;
   }) {
+    const isApproved = data.status === LeaveStatus.APPROVED;
     return prisma.leaveRequest.create({
       data: {
         userId: data.userId,
@@ -97,7 +99,8 @@ export class HrRepository {
         startDate: data.startDate,
         endDate: data.endDate,
         reason: data.reason,
-        status: LeaveStatus.PENDING,
+        status: data.status || LeaveStatus.PENDING,
+        approvedAt: isApproved ? new Date() : undefined,
       },
     });
   }
