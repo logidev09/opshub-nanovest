@@ -248,8 +248,55 @@ export function FinanceLedgerClient({
     } else {
       alert(result.error || "Gagal menghapus jurnal");
     }
+  // Trigger Edit Mode (Admin/Accountant - Item 3.2 Revision History)
+  const openEditModal = (entry: JournalEntryView) => {
+    const { cleanDescription } = parseJournalRevisions(entry.description);
+    const { text, attachments } = parseAttachments(cleanDescription);
+    setEditingEntry(entry);
+    setEditEntryDate(entry.entryDate.slice(0, 10));
+    setEditDescription(text);
+    setEditAttachedFiles(attachments);
+    setIsEditModalOpen(true);
   };
 
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEntry) return;
+
+    setEditLoading(true);
+
+    // Calculate revision history (Item 3.2)
+    const { cleanDescription, revisions } = parseJournalRevisions(editingEntry.description);
+    const { text: currentText } = parseAttachments(cleanDescription);
+
+    const newRevision: JournalRevisionItem = {
+      revisionNumber: revisions.length + 1,
+      editedAt: new Date().toISOString(),
+      editedBy: `${userRole} (${userDivision || "Finance"})`,
+      oldDescription: currentText,
+      newDescription: editDescription.trim(),
+      oldDate: editingEntry.entryDate.slice(0, 10),
+      newDate: editEntryDate,
+    };
+
+    const updatedRevisions = [...revisions, newRevision];
+    const newTextWithFiles = formatAttachmentsMessage(editDescription.trim(), editAttachedFiles);
+    const finalDescriptionWithRevisions = formatDescriptionWithRevisions(newTextWithFiles, updatedRevisions);
+
+    const result = await updateJournalEntryAction(editingEntry.id, {
+      entryDate: editEntryDate,
+      description: finalDescriptionWithRevisions,
+    });
+    setEditLoading(false);
+
+    if (result.success) {
+      setIsEditModalOpen(false);
+      setEditingEntry(null);
+      router.refresh();
+    } else {
+      alert(result.error || "Gagal memperbarui entri jurnal.");
+    }
+  };
 
   // Financial Insights Calculations
   const netProfit = revenue - expense;
