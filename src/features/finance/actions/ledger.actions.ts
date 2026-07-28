@@ -15,12 +15,19 @@ type SessionUser = {
   role?: string;
 };
 
+export interface JournalLineInput {
+  financeAccountId: string;
+  side: "DEBIT" | "CREDIT";
+  amount: number;
+}
+
 interface PostJournalEntryInput {
   description: string;
   entryDate: string;
-  debitAccountId: string;
-  creditAccountId: string;
-  amount: number;
+  lines?: JournalLineInput[];
+  debitAccountId?: string;
+  creditAccountId?: string;
+  amount?: number;
   attachmentName?: string;
   attachmentData?: string;
 }
@@ -36,15 +43,14 @@ export async function postJournalEntryAction(input: PostJournalEntryInput) {
   }
 
   const sessionUser = session.user as SessionUser;
-  if (!["ADMIN", "HR"].includes(sessionUser.role || "")) {
-    return { success: false, error: "Hanya admin atau HR yang dapat memposting jurnal." };
+  if (!["ADMIN", "HR", "ACCOUNTANT"].includes(sessionUser.role || "")) {
+    return { success: false, error: "Role Anda tidak diizinkan memposting jurnal." };
   }
 
   let description = input.description.trim();
   if (input.attachmentName && input.attachmentData) {
     description = `${description}\n\n---ATTACHMENT_START---\nNAME: ${input.attachmentName}\nDATA: ${input.attachmentData}\n---ATTACHMENT_END---`;
   }
-  const amount = Number(input.amount);
 
   if (!input.description.trim()) {
     return { success: false, error: "Deskripsi jurnal wajib diisi." };
@@ -54,56 +60,61 @@ export async function postJournalEntryAction(input: PostJournalEntryInput) {
     return { success: false, error: "Tanggal jurnal wajib diisi." };
   }
 
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return { success: false, error: "Nominal jurnal harus lebih besar dari nol." };
+  let journalLines: JournalLineInput[] = [];
+
+  if (input.lines && input.lines.length > 0) {
+    journalLines = input.lines;
+  } else if (input.debitAccountId && input.creditAccountId && input.amount) {
+    const singleAmt = Number(input.amount);
+    if (!Number.isFinite(singleAmt) || singleAmt <= 0) {
+      return { success: false, error: "Nominal jurnal harus lebih besar dari nol." };
+    }
+    if (input.debitAccountId === input.creditAccountId) {
+      return { success: false, error: "Akun debit dan kredit harus berbeda." };
+    }
+    journalLines = [
+      { financeAccountId: input.debitAccountId, side: "DEBIT", amount: singleAmt },
+      { financeAccountId: input.creditAccountId, side: "CREDIT", amount: singleAmt },
+    ];
+  } else {
+    return { success: false, error: "Detail baris jurnal debit/kredit tidak lengkap." };
   }
 
-  if (input.debitAccountId === input.creditAccountId) {
-    return { success: false, error: "Akun debit dan kredit harus berbeda." };
+  const totalDebit = journalLines
+    .filter((l) => l.side === "DEBIT")
+    .reduce((sum, l) => sum + Number(l.amount), 0);
+  const totalCredit = journalLines
+    .filter((l) => l.side === "CREDIT")
+    .reduce((sum, l) => sum + Number(l.amount), 0);
+
+  if (totalDebit <= 0 || totalCredit <= 0) {
+    return { success: false, error: "Nominal total debit dan kredit harus lebih besar dari nol." };
+  }
+
+  if (Math.abs(totalDebit - totalCredit) > 0.01) {
+    return {
+      success: false,
+      error: `Jurnal tidak seimbang! Total Debit: ${totalDebit.toLocaleString("id-ID")}, Total Kredit: ${totalCredit.toLocaleString("id-ID")}.`,
+    };
   }
 
   try {
-    const [debitAccount, creditAccount, entryCount] = await Promise.all([
-      prisma.financeAccount.findUnique({
-        where: { id: input.debitAccountId },
-        select: { id: true, code: true, name: true, isActive: true },
-      }),
-      prisma.financeAccount.findUnique({
-        where: { id: input.creditAccountId },
-        select: { id: true, code: true, name: true, isActive: true },
-      }),
-      prisma.journalEntry.count(),
-    ]);
-
-    if (!debitAccount || !creditAccount) {
-      return { success: false, error: "Akun ledger tidak ditemukan." };
-    }
-
-    if (!debitAccount.isActive || !creditAccount.isActive) {
-      return { success: false, error: "Akun ledger nonaktif tidak dapat dipakai untuk posting." };
-    }
+    const entryCount = await prisma.journalEntry.count();
 
     const createdEntry = await prisma.journalEntry.create({
       data: {
         reference: `JE-${new Date().getFullYear()}-${String(entryCount + 1).padStart(4, "0")}`,
         description,
         entryDate: new Date(input.entryDate),
-        totalDebit: amount,
-        totalCredit: amount,
+        totalDebit,
+        totalCredit,
         postedById: sessionUser.id,
         lines: {
-          create: [
-            {
-              financeAccountId: debitAccount.id,
-              side: BalanceSide.DEBIT,
-              amount,
-            },
-            {
-              financeAccountId: creditAccount.id,
-              side: BalanceSide.CREDIT,
-              amount,
-            },
-          ],
+          create: journalLines.map((line) => ({
+            financeAccountId: line.financeAccountId,
+            side: line.side as BalanceSide,
+            amount: Number(line.amount),
+          })),
         },
       },
     });
@@ -115,9 +126,9 @@ export async function postJournalEntryAction(input: PostJournalEntryInput) {
       entityId: createdEntry.id,
       newValue: {
         description,
-        amount,
-        debitAccount: debitAccount.code,
-        creditAccount: creditAccount.code,
+        totalDebit,
+        totalCredit,
+        lineCount: journalLines.length,
       },
     });
 
@@ -129,6 +140,86 @@ export async function postJournalEntryAction(input: PostJournalEntryInput) {
   }
 }
 
+export async function requestJournalEditPermissionAction() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+  const user = session.user as SessionUser;
+  try {
+    await AuditService.log({
+      userId: user.id,
+      action: "REQUEST_JOURNAL_EDIT_PERMISSION",
+      entity: "JournalEditPermission",
+      entityId: user.id,
+      newValue: { requestedAt: new Date().toISOString(), status: "PENDING" },
+    });
+    revalidatePath("/dashboard/finance");
+    return { success: true, message: "Permohonan izin perubahan jurnal berhasil dikirim ke Admin." };
+  } catch (err: any) {
+    return { success: false, error: "Gagal mengajukan izin." };
+  }
+}
+
+export async function approveJournalEditPermissionAction(approved: boolean) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+  const user = session.user as SessionUser;
+  if (user.role !== "ADMIN") {
+    return { success: false, error: "Hanya Admin yang dapat menyetujui izin perubahan." };
+  }
+  try {
+    await AuditService.log({
+      userId: user.id,
+      action: approved ? "APPROVE_JOURNAL_EDIT_PERMISSION" : "REJECT_JOURNAL_EDIT_PERMISSION",
+      entity: "JournalEditPermission",
+      entityId: user.id,
+      newValue: { processedAt: new Date().toISOString(), status: approved ? "APPROVED" : "REJECTED" },
+    });
+    revalidatePath("/dashboard/finance");
+    return {
+      success: true,
+      message: approved ? "Izin perubahan jurnal disetujui." : "Izin perubahan jurnal ditolak.",
+    };
+  } catch (err: any) {
+    return { success: false, error: "Gagal memproses izin." };
+  }
+}
+
+export async function getJournalEditPermissionStatusAction() {
+  try {
+    const logs = await prisma.auditLog.findMany({
+      where: { entity: "JournalEditPermission" },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+    if (logs.length === 0) {
+      return { success: true, status: "NONE", requestedAt: null, processedAt: null };
+    }
+    const latest = logs[0];
+    const requestedLog = logs.find((l) => l.action === "REQUEST_JOURNAL_EDIT_PERMISSION");
+    const processedLog = logs.find((l) =>
+      ["APPROVE_JOURNAL_EDIT_PERMISSION", "REJECT_JOURNAL_EDIT_PERMISSION"].includes(l.action)
+    );
+
+    let status = "NONE";
+    if (latest.action === "REQUEST_JOURNAL_EDIT_PERMISSION") status = "PENDING";
+    if (latest.action === "APPROVE_JOURNAL_EDIT_PERMISSION") status = "APPROVED";
+    if (latest.action === "REJECT_JOURNAL_EDIT_PERMISSION") status = "REJECTED";
+
+    return {
+      success: true,
+      status,
+      requestedAt: requestedLog ? requestedLog.createdAt.toISOString() : null,
+      processedAt: processedLog ? processedLog.createdAt.toISOString() : null,
+    };
+  } catch (err) {
+    return { success: false, status: "NONE", requestedAt: null, processedAt: null };
+  }
+}
+
 export async function deleteJournalEntryAction(id: string) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -137,7 +228,7 @@ export async function deleteJournalEntryAction(id: string) {
 
   const sessionUser = session.user as SessionUser;
   if (sessionUser.role !== "ADMIN") {
-    return { success: false, error: "Hanya admin yang dapat menghapus/mengubah kembali jurnal." };
+    return { success: false, error: "Hanya admin yang dapat menghapus jurnal." };
   }
 
   try {
@@ -176,6 +267,7 @@ export async function updateJournalEntryAction(
   data: {
     entryDate: string;
     description: string;
+    lines?: JournalLineInput[];
     attachmentName?: string;
     attachmentData?: string;
   }
@@ -186,8 +278,13 @@ export async function updateJournalEntryAction(
   }
 
   const sessionUser = session.user as SessionUser;
-  if (sessionUser.role !== "ADMIN") {
-    return { success: false, error: "Hanya admin yang dapat mengubah jurnal entry." };
+  const isAdmin = sessionUser.role === "ADMIN";
+
+  if (!isAdmin) {
+    const perm = await getJournalEditPermissionStatusAction();
+    if (perm.status !== "APPROVED") {
+      return { success: false, error: "Anda memerlukan izin dari Admin untuk melakukan perubahan jurnal." };
+    }
   }
 
   const rawDescription = data.description.trim();
@@ -199,22 +296,91 @@ export async function updateJournalEntryAction(
     return { success: false, error: "Tanggal wajib diisi." };
   }
 
-  let finalDescription = rawDescription;
-  if (data.attachmentName && data.attachmentData) {
-    finalDescription = `${finalDescription}\n\n---ATTACHMENT_START---\nNAME: ${data.attachmentName}\nDATA: ${data.attachmentData}\n---ATTACHMENT_END---`;
-  }
-
   try {
-    const oldEntry = await prisma.journalEntry.findUnique({ where: { id } });
+    const oldEntry = await prisma.journalEntry.findUnique({
+      where: { id },
+      include: { lines: { include: { financeAccount: selectAll } } },
+    });
     if (!oldEntry) {
       return { success: false, error: "Jurnal tidak ditemukan." };
+    }
+
+    let finalDescription = rawDescription;
+    if (data.attachmentName && data.attachmentData) {
+      finalDescription = `${finalDescription}\n\n---ATTACHMENT_START---\nNAME: ${data.attachmentName}\nDATA: ${data.attachmentData}\n---ATTACHMENT_END---`;
+    }
+
+    // Preserve and append revision history
+    const prevRevisionMarker = "---REVISIONS_START---";
+    let existingRevisions: any[] = [];
+    if (oldEntry.description.includes(prevRevisionMarker)) {
+      const parts = oldEntry.description.split(prevRevisionMarker);
+      const jsonStr = parts[1]?.split("---REVISIONS_END---")[0]?.trim() || "";
+      try {
+        existingRevisions = JSON.parse(jsonStr);
+      } catch (e) {}
+    }
+
+    const newRevisionItem = {
+      revisionNumber: existingRevisions.length + 1,
+      editedAt: new Date().toISOString(),
+      editedBy: sessionUser.id,
+      oldDescription: oldEntry.description.split("---REVISIONS_START---")[0].trim(),
+      newDescription: rawDescription,
+      oldDate: oldEntry.entryDate.toISOString(),
+      newDate: data.entryDate,
+      oldLines: oldEntry.lines.map((l) => ({
+        side: l.side,
+        financeAccountId: l.financeAccountId,
+        accountCode: l.financeAccount?.code,
+        accountName: l.financeAccount?.name,
+        amount: l.amount.toNumber(),
+      })),
+      newLines: data.lines || [],
+    };
+
+    const updatedRevisions = [...existingRevisions, newRevisionItem].slice(-10);
+
+    const descriptionWithRevisions = `${finalDescription}\n\n---REVISIONS_START---\n${JSON.stringify(
+      updatedRevisions
+    )}\n---REVISIONS_END---`;
+
+    let newTotalDebit = oldEntry.totalDebit.toNumber();
+    let newTotalCredit = oldEntry.totalCredit.toNumber();
+
+    if (data.lines && data.lines.length > 0) {
+      newTotalDebit = data.lines
+        .filter((l) => l.side === "DEBIT")
+        .reduce((sum, l) => sum + Number(l.amount), 0);
+      newTotalCredit = data.lines
+        .filter((l) => l.side === "CREDIT")
+        .reduce((sum, l) => sum + Number(l.amount), 0);
+
+      if (Math.abs(newTotalDebit - newTotalCredit) > 0.01) {
+        return {
+          success: false,
+          error: `Jurnal tidak seimbang! Total Debit: ${newTotalDebit.toLocaleString("id-ID")}, Total Kredit: ${newTotalCredit.toLocaleString("id-ID")}.`,
+        };
+      }
+
+      await prisma.journalLine.deleteMany({ where: { journalEntryId: id } });
+      await prisma.journalLine.createMany({
+        data: data.lines.map((l) => ({
+          journalEntryId: id,
+          financeAccountId: l.financeAccountId,
+          side: l.side as BalanceSide,
+          amount: Number(l.amount),
+        })),
+      });
     }
 
     const updatedEntry = await prisma.journalEntry.update({
       where: { id },
       data: {
         entryDate: new Date(data.entryDate),
-        description: finalDescription,
+        description: descriptionWithRevisions,
+        totalDebit: newTotalDebit,
+        totalCredit: newTotalCredit,
       },
     });
 
@@ -238,6 +404,92 @@ export async function updateJournalEntryAction(
     return { success: true, data: updatedEntry, message: "Jurnal entry berhasil diperbarui." };
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error, "Gagal memperbarui jurnal entry.") };
+  }
+}
+
+const selectAll = { select: { code: true, name: true } };
+
+export async function undoJournalEntryRevisionAction(id: string, revisionNumber: number) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+
+  const sessionUser = session.user as SessionUser;
+  if (sessionUser.role !== "ADMIN") {
+    return { success: false, error: "Hanya Admin yang dapat memulihkan (undo) riwayat jurnal." };
+  }
+
+  try {
+    const entry = await prisma.journalEntry.findUnique({ where: { id } });
+    if (!entry) return { success: false, error: "Jurnal tidak ditemukan." };
+
+    const marker = "---REVISIONS_START---";
+    if (!entry.description.includes(marker)) {
+      return { success: false, error: "Tidak ada riwayat revisi untuk jurnal ini." };
+    }
+
+    const jsonStr = entry.description.split(marker)[1]?.split("---REVISIONS_END---")[0]?.trim() || "";
+    const revisions = JSON.parse(jsonStr);
+    const targetRev = revisions.find((r: any) => r.revisionNumber === revisionNumber);
+
+    if (!targetRev) return { success: false, error: "Versi revisi yang dipilih tidak ditemukan." };
+
+    let restoredDate = entry.entryDate;
+    if (targetRev.oldDate) restoredDate = new Date(targetRev.oldDate);
+
+    let restoredDesc = targetRev.oldDescription || entry.description.split(marker)[0].trim();
+
+    if (targetRev.oldLines && targetRev.oldLines.length > 0) {
+      const restoredDebit = targetRev.oldLines
+        .filter((l: any) => l.side === "DEBIT")
+        .reduce((sum: number, l: any) => sum + Number(l.amount), 0);
+      const restoredCredit = targetRev.oldLines
+        .filter((l: any) => l.side === "CREDIT")
+        .reduce((sum: number, l: any) => sum + Number(l.amount), 0);
+
+      await prisma.journalLine.deleteMany({ where: { journalEntryId: id } });
+      await prisma.journalLine.createMany({
+        data: targetRev.oldLines.map((l: any) => ({
+          journalEntryId: id,
+          financeAccountId: l.financeAccountId,
+          side: l.side as BalanceSide,
+          amount: Number(l.amount),
+        })),
+      });
+
+      await prisma.journalEntry.update({
+        where: { id },
+        data: {
+          entryDate: restoredDate,
+          description: restoredDesc,
+          totalDebit: restoredDebit,
+          totalCredit: restoredCredit,
+        },
+      });
+    } else {
+      await prisma.journalEntry.update({
+        where: { id },
+        data: {
+          entryDate: restoredDate,
+          description: restoredDesc,
+        },
+      });
+    }
+
+    await AuditService.log({
+      userId: sessionUser.id,
+      action: "UNDO_JOURNAL_REVISION",
+      entity: "JournalEntry",
+      entityId: id,
+      newValue: { restoredRevisionNumber: revisionNumber },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/finance");
+    return { success: true, message: `Berhasil memulihkan jurnal ke Revisi #${revisionNumber}.` };
+  } catch (err: any) {
+    return { success: false, error: "Gagal memulihkan revisi jurnal." };
   }
 }
 

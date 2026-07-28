@@ -9,6 +9,11 @@ import {
   updateJournalEntryAction,
   updateJournalEntryAttachmentAction,
   generateFinanceInsightsAction,
+  requestJournalEditPermissionAction,
+  approveJournalEditPermissionAction,
+  getJournalEditPermissionStatusAction,
+  undoJournalEntryRevisionAction,
+  JournalLineInput,
 } from "@/features/finance/actions/ledger.actions";
 import { exportToCSV } from "@/features/shared/lib/export";
 import { FileViewerModal } from "@/features/shared/components/file-viewer-modal";
@@ -100,13 +105,19 @@ export function FinanceLedgerClient({
   // Multi-file attachments per tax item
   const [taxAttachmentsMap, setTaxAttachmentsMap] = useState<Record<string, AttachmentItem[]>>({});
 
-  // New Journal Entry Form States (Multi-file - Item 5)
+  // Permission state for Accountant journal editing
+  const [editPermStatus, setEditPermStatus] = useState<"NONE" | "PENDING" | "APPROVED" | "REJECTED">("NONE");
+  const [permRequestedAt, setPermRequestedAt] = useState<string | null>(null);
+  const [permProcessedAt, setPermProcessedAt] = useState<string | null>(null);
+  const [isRequestingPerm, setIsRequestingPerm] = useState(false);
+
+  // New Journal Entry Form States
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
-  const [note, setNote] = useState("");
-  const [debitAccountId, setDebitAccountId] = useState(accounts[0]?.id ?? "");
-  const [creditAccountId, setCreditAccountId] = useState(accounts[1]?.id ?? accounts[0]?.id ?? "");
-  const [amount, setAmount] = useState("");
+  const [journalFormLines, setJournalFormLines] = useState<JournalLineInput[]>([
+    { side: "DEBIT", financeAccountId: accounts[0]?.id ?? "", amount: 0 },
+    { side: "CREDIT", financeAccountId: accounts[1]?.id ?? accounts[0]?.id ?? "", amount: 0 },
+  ]);
   const [attachedFiles, setAttachedFiles] = useState<AttachmentItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -119,19 +130,33 @@ export function FinanceLedgerClient({
     editedAt?: string | null;
   } | null>(null);
 
-  // Revision History Modal State (Item 3.2)
+  // Revision History Modal State
   const [viewingRevisionsEntry, setViewingRevisionsEntry] = useState<{
+    id?: string;
     reference: string;
     revisions: JournalRevisionItem[];
   } | null>(null);
 
-  // Edit Journal Entry States (Admin only)
+  // Edit Journal Entry States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntryView | null>(null);
   const [editEntryDate, setEditEntryDate] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editFormLines, setEditFormLines] = useState<JournalLineInput[]>([]);
   const [editAttachedFiles, setEditAttachedFiles] = useState<AttachmentItem[]>([]);
   const [editLoading, setEditLoading] = useState(false);
+
+  useEffect(() => {
+    async function loadPermissionStatus() {
+      const res = await getJournalEditPermissionStatusAction();
+      if (res.success) {
+        setEditPermStatus(res.status as any);
+        setPermRequestedAt(res.requestedAt);
+        setPermProcessedAt(res.processedAt);
+      }
+    }
+    loadPermissionStatus();
+  }, []);
 
   // Floating Chat states
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -198,37 +223,88 @@ export function FinanceLedgerClient({
     exportToCSV(ledgerAccounts, headers, "Laporan_Buku_Besar_Nanovest");
   };
 
+  const handleRequestEditPermission = async () => {
+    setIsRequestingPerm(true);
+    const res = await requestJournalEditPermissionAction();
+    setIsRequestingPerm(false);
+    if (res.success) {
+      setEditPermStatus("PENDING");
+      alert(res.message);
+      router.refresh();
+    } else {
+      alert(res.error || "Gagal mengajukan izin.");
+    }
+  };
+
+  const handleApproveEditPermission = async (approved: boolean) => {
+    const res = await approveJournalEditPermissionAction(approved);
+    if (res.success) {
+      setEditPermStatus(approved ? "APPROVED" : "REJECTED");
+      alert(res.message);
+      router.refresh();
+    } else {
+      alert(res.error || "Gagal memproses izin.");
+    }
+  };
+
+  const handleUndoRevision = async (entryId: string, revisionNumber: number) => {
+    if (!confirm(`Apakah Anda yakin ingin memulihkan jurnal ke Revisi #${revisionNumber}?`)) return;
+    const res = await undoJournalEntryRevisionAction(entryId, revisionNumber);
+    if (res.success) {
+      alert(res.message);
+      setViewingRevisionsEntry(null);
+      router.refresh();
+    } else {
+      alert(res.error || "Gagal memulihkan revisi.");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || Number(amount) <= 0 || !description.trim()) {
-      setMessage({ type: "error", text: "Mohon isi nominal dan deskripsi jurnal secara benar." });
+    if (!description.trim()) {
+      setMessage({ type: "error", text: "Deskripsi jurnal wajib diisi." });
+      return;
+    }
+
+    const totalDebit = journalFormLines
+      .filter((l) => l.side === "DEBIT")
+      .reduce((sum, l) => sum + Number(l.amount), 0);
+    const totalCredit = journalFormLines
+      .filter((l) => l.side === "CREDIT")
+      .reduce((sum, l) => sum + Number(l.amount), 0);
+
+    if (totalDebit <= 0 || totalCredit <= 0) {
+      setMessage({ type: "error", text: "Nominal total debit dan kredit harus lebih besar dari nol." });
+      return;
+    }
+
+    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+      setMessage({
+        type: "error",
+        text: `Jurnal tidak seimbang! Total Debit: ${formatCurrency(totalDebit)}, Total Kredit: ${formatCurrency(totalCredit)}.`,
+      });
       return;
     }
 
     setIsSubmitting(true);
     setMessage(null);
 
-    let fullDescription = description.trim();
-    if (note.trim()) {
-      fullDescription += ` (Catatan: ${note.trim()})`;
-    }
-
-    const finalDescription = formatAttachmentsMessage(fullDescription, attachedFiles);
+    const finalDescription = formatAttachmentsMessage(description.trim(), attachedFiles);
 
     const result = await postJournalEntryAction({
       description: finalDescription,
       entryDate,
-      debitAccountId,
-      creditAccountId,
-      amount: Number(amount),
+      lines: journalFormLines,
     });
 
     setIsSubmitting(false);
     if (result.success) {
-      setMessage({ type: "success", text: result.message || "Jurnal berhasil diposting." });
+      setMessage({ type: "success", text: result.message || "Jurnal balanced berhasil diposting." });
       setDescription("");
-      setNote("");
-      setAmount("");
+      setJournalFormLines([
+        { side: "DEBIT", financeAccountId: accounts[0]?.id ?? "", amount: 0 },
+        { side: "CREDIT", financeAccountId: accounts[1]?.id ?? accounts[0]?.id ?? "", amount: 0 },
+      ]);
       setAttachedFiles([]);
       router.refresh();
     } else {
@@ -250,13 +326,20 @@ export function FinanceLedgerClient({
     }
   };
 
-  // Trigger Edit Mode (Admin/Accountant - Item 3.2 Revision History)
+  // Trigger Edit Mode
   const openEditModal = (entry: JournalEntryView) => {
     const { cleanDescription } = parseJournalRevisions(entry.description);
     const { text, attachments } = parseAttachments(cleanDescription);
     setEditingEntry(entry);
     setEditEntryDate(entry.entryDate.slice(0, 10));
     setEditDescription(text);
+    setEditFormLines(
+      entry.lines.map((l) => ({
+        side: l.side as "DEBIT" | "CREDIT",
+        financeAccountId: accounts.find((a) => a.code === l.accountCode)?.id || accounts[0]?.id || "",
+        amount: l.amount,
+      }))
+    );
     setEditAttachedFiles(attachments);
     setIsEditModalOpen(true);
   };
@@ -265,29 +348,19 @@ export function FinanceLedgerClient({
     e.preventDefault();
     if (!editingEntry) return;
 
+    if (!editDescription.trim()) {
+      alert("Deskripsi jurnal wajib diisi.");
+      return;
+    }
+
     setEditLoading(true);
-
-    // Calculate revision history (Item 3.2)
-    const { cleanDescription, revisions } = parseJournalRevisions(editingEntry.description);
-    const { text: currentText } = parseAttachments(cleanDescription);
-
-    const newRevision: JournalRevisionItem = {
-      revisionNumber: revisions.length + 1,
-      editedAt: new Date().toISOString(),
-      editedBy: `${userRole} (${userDivision || "Finance"})`,
-      oldDescription: currentText,
-      newDescription: editDescription.trim(),
-      oldDate: editingEntry.entryDate.slice(0, 10),
-      newDate: editEntryDate,
-    };
-
-    const updatedRevisions = [...revisions, newRevision];
-    const newTextWithFiles = formatAttachmentsMessage(editDescription.trim(), editAttachedFiles);
-    const finalDescriptionWithRevisions = formatDescriptionWithRevisions(newTextWithFiles, updatedRevisions);
 
     const result = await updateJournalEntryAction(editingEntry.id, {
       entryDate: editEntryDate,
-      description: finalDescriptionWithRevisions,
+      description: editDescription.trim(),
+      lines: editFormLines,
+      attachmentName: editAttachedFiles[0]?.name,
+      attachmentData: editAttachedFiles[0]?.data,
     });
     setEditLoading(false);
 
@@ -806,7 +879,7 @@ export function FinanceLedgerClient({
                 <span className="text-xl block">🔒</span>
                 <p className="font-semibold text-zinc-400">Akses Terbatas (Read-Only)</p>
                 <p className="text-zinc-500 leading-relaxed text-[11px]">
-                  Akun HR Specialist diperbolehkan melihat data laporan buku besar ini, namun tidak memiliki wewenang untuk menambahkan entri jurnal baru.
+                  Akun HR Specialist diperbolehkan melihat data laporan buku besar ini, namun tidak memiliki wewenang untuk menambahkan atau merubah entri jurnal.
                 </p>
               </div>
             ) : (
@@ -829,94 +902,152 @@ export function FinanceLedgerClient({
 
                 <div>
                   <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                    Deskripsi
+                    Deskripsi / Catatan Jurnal
                   </label>
                   <input
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Contoh: Pembayaran vendor software"
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
+                    placeholder="Contoh: Tambahan Modal Disetor & Liabilitas Sewa"
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
                   />
                 </div>
 
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                    Akun Debit
-                  </label>
-                  <select
-                    value={debitAccountId}
-                    onChange={(e) => setDebitAccountId(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/80"
-                  >
-                    {ledgerAccounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.code} - {account.name} ({account.categoryLabel})
-                      </option>
-                    ))}
-                  </select>
+                {/* Compound Journal Lines Builder (1 Debit & Multiple Credits or Vice Versa) */}
+                <div className="space-y-3 p-4 border border-zinc-900 bg-zinc-950/60 rounded-xl">
+                  <div className="flex justify-between items-center border-b border-zinc-900 pb-2">
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">
+                      Detail Baris Jurnal (Debit & Kredit)
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setJournalFormLines((prev) => [
+                            ...prev,
+                            { side: "DEBIT", financeAccountId: accounts[0]?.id ?? "", amount: 0 },
+                          ])
+                        }
+                        className="px-2.5 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-[10px] font-bold text-emerald-400 hover:bg-emerald-500/20 transition cursor-pointer"
+                      >
+                        + Baris Debit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setJournalFormLines((prev) => [
+                            ...prev,
+                            { side: "CREDIT", financeAccountId: accounts[1]?.id ?? accounts[0]?.id ?? "", amount: 0 },
+                          ])
+                        }
+                        className="px-2.5 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-[10px] font-bold text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
+                      >
+                        + Baris Kredit
+                      </button>
+                    </div>
+                  </div>
+
+                  {journalFormLines.map((line, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
+                      <div className="col-span-3">
+                        <select
+                          value={line.side}
+                          onChange={(e) => {
+                            const val = e.target.value as "DEBIT" | "CREDIT";
+                            setJournalFormLines((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, side: val } : l))
+                            );
+                          }}
+                          className={`w-full rounded-lg border px-2 py-1.5 text-xs font-bold outline-none ${
+                            line.side === "DEBIT"
+                              ? "border-emerald-500/30 bg-emerald-950/40 text-emerald-400"
+                              : "border-amber-500/30 bg-amber-950/40 text-amber-400"
+                          }`}
+                        >
+                          <option value="DEBIT">DEBIT</option>
+                          <option value="CREDIT">CREDIT</option>
+                        </select>
+                      </div>
+
+                      <div className="col-span-5">
+                        <select
+                          value={line.financeAccountId}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setJournalFormLines((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, financeAccountId: val } : l))
+                            );
+                          }}
+                          className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-white outline-none"
+                        >
+                          {ledgerAccounts.map((account) => (
+                            <option key={account.id} value={account.id}>
+                              {account.code} {account.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="col-span-3">
+                        <input
+                          type="number"
+                          min="0"
+                          step="1000"
+                          placeholder="Nominal"
+                          value={line.amount || ""}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setJournalFormLines((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, amount: val } : l))
+                            );
+                          }}
+                          className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs font-mono text-white outline-none"
+                        />
+                      </div>
+
+                      <div className="col-span-1 text-center">
+                        {journalFormLines.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setJournalFormLines((prev) => prev.filter((_, i) => i !== idx))
+                            }
+                            className="text-zinc-500 hover:text-rose-400 font-bold text-sm cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="pt-2 border-t border-zinc-900 flex justify-between items-center text-[11px] font-mono">
+                    {(() => {
+                      const deb = journalFormLines
+                        .filter((l) => l.side === "DEBIT")
+                        .reduce((acc, l) => acc + Number(l.amount), 0);
+                      const cred = journalFormLines
+                        .filter((l) => l.side === "CREDIT")
+                        .reduce((acc, l) => acc + Number(l.amount), 0);
+                      const isBalanced = deb > 0 && Math.abs(deb - cred) < 0.01;
+                      return (
+                        <>
+                          <span className="text-zinc-400">
+                            Total Debit: <span className="text-emerald-400 font-bold">{formatCurrency(deb)}</span> | Total Kredit: <span className="text-amber-400 font-bold">{formatCurrency(cred)}</span>
+                          </span>
+                          <span className={`font-bold px-2 py-0.5 rounded ${isBalanced ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-rose-500/20 text-rose-400 border border-rose-500/30"}`}>
+                            {isBalanced ? "Balanced ✔" : "Unbalanced ✕"}
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
 
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                    Akun Kredit
-                  </label>
-                  <select
-                    value={creditAccountId}
-                    onChange={(e) => setCreditAccountId(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500/80"
-                  >
-                    {ledgerAccounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.code} - {account.name} ({account.categoryLabel})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                    Nominal
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1000"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="5000000"
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                    Catatan Opsional (Catatan / Memo)
-                  </label>
-                  <input
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="Catatan tambahan (mis. Memo khusus)"
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                    Catatan Opsional (Catatan / Memo)
-                  </label>
-                  <input
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="Catatan tambahan (mis. Memo khusus)"
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
-                  />
-                </div>
-
-                {/* Multi-File Upload Field (Item 5) */}
+                {/* Multi-File Upload Field */}
                 <MultiFileUploader
                   files={attachedFiles}
                   onChange={setAttachedFiles}
-                  label="Lampiran Berkas Bukti (Bisa Banyak File: PDF, PNG, JPG, JPEG, DOCX, TXT)"
+                  label="Lampiran Berkas Bukti (PDF, PNG, JPG, JPEG, DOCX, TXT)"
                 />
 
                 <button
@@ -931,7 +1062,56 @@ export function FinanceLedgerClient({
           </div>
 
           <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6">
-            <h3 className="mb-4 text-base font-bold text-white">Recent Journal Entries</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <h3 className="text-base font-bold text-white">Recent Journal Entries</h3>
+
+              {/* Edit Permission Workflow (Requirement 3 & 4) */}
+              {userRole !== "HR" && userRole !== "ADMIN" && (
+                <div>
+                  {editPermStatus === "NONE" || editPermStatus === "REJECTED" ? (
+                    <button
+                      type="button"
+                      onClick={handleRequestEditPermission}
+                      disabled={isRequestingPerm}
+                      className="px-3 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition cursor-pointer"
+                    >
+                      🔓 Minta Izin Perubahan Jurnal
+                    </button>
+                  ) : editPermStatus === "PENDING" ? (
+                    <span className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl font-medium">
+                      ⏳ Menunggu Persetujuan Admin {permRequestedAt && `(Diajukan: ${new Date(permRequestedAt).toLocaleDateString("id-ID")})`}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl font-medium">
+                      ✅ Izin Perubahan Disetujui Admin {permRequestedAt && `(Diajukan: ${new Date(permRequestedAt).toLocaleDateString("id-ID")}`} {permProcessedAt && `| Diproses: ${new Date(permProcessedAt).toLocaleDateString("id-ID")})`}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {userRole === "ADMIN" && editPermStatus === "PENDING" && (
+                <div className="p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 flex items-center justify-between gap-3 text-xs">
+                  <span className="text-amber-300 font-medium">Accountant mengajukan izin perubahan jurnal.</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleApproveEditPermission(true)}
+                      className="px-2.5 py-1 rounded bg-emerald-500 text-black font-bold text-[10px] hover:bg-emerald-400 transition"
+                    >
+                      Setujui Izin
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApproveEditPermission(false)}
+                      className="px-2.5 py-1 rounded bg-rose-500 text-white font-bold text-[10px] hover:bg-rose-400 transition"
+                    >
+                      Tolak
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-3">
               {entries.length === 0 ? (
                 <div className="text-zinc-500 text-xs text-center py-4">Belum ada jurnal masuk.</div>
@@ -940,6 +1120,8 @@ export function FinanceLedgerClient({
                   const { cleanDescription, revisions } = parseJournalRevisions(entry.description);
                   const { text, attachments } = parseAttachments(cleanDescription);
                   const lastEdited = revisions.length > 0 ? revisions[revisions.length - 1].editedAt : null;
+                  const canEdit = userRole === "ADMIN" || (userRole !== "HR" && editPermStatus === "APPROVED");
+                  const showRevisions = userRole === "ADMIN" || (userRole !== "HR" && editPermStatus === "APPROVED");
 
                   return (
                     <div key={entry.id} className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
@@ -947,11 +1129,12 @@ export function FinanceLedgerClient({
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-bold text-white">{entry.reference}</span>
-                            {revisions.length > 0 && (
+                            {showRevisions && revisions.length > 0 && (
                               <button
                                 type="button"
                                 onClick={() =>
                                   setViewingRevisionsEntry({
+                                    id: entry.id,
                                     reference: entry.reference,
                                     revisions,
                                   })
@@ -965,7 +1148,7 @@ export function FinanceLedgerClient({
                           <p className="text-xs text-zinc-300 mt-1">{text}</p>
                           <div className="flex flex-wrap gap-3 text-[10px] text-zinc-500 mt-1 font-mono">
                             <span>Di-entry: {new Date(entry.entryDate).toLocaleDateString("id-ID")}</span>
-                            {lastEdited && (
+                            {showRevisions && lastEdited && (
                               <span className="text-emerald-400">
                                 Disunting: {new Date(lastEdited).toLocaleString("id-ID")}
                               </span>
@@ -975,15 +1158,17 @@ export function FinanceLedgerClient({
 
                         <div className="flex flex-col items-end gap-1 shrink-0">
                           <div className="flex gap-2 items-center">
-                            {(userRole === "ADMIN" || userDivision === "Accounting") && (
+                            {userRole !== "HR" && (
                               <>
-                                <button
-                                  type="button"
-                                  onClick={() => openEditModal(entry)}
-                                  className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold uppercase transition cursor-pointer"
-                                >
-                                  Sunting
-                                </button>
+                                {canEdit && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditModal(entry)}
+                                    className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold uppercase transition cursor-pointer"
+                                  >
+                                    Sunting
+                                  </button>
+                                )}
                                 {userRole === "ADMIN" && (
                                   <button
                                     type="button"
@@ -1000,7 +1185,7 @@ export function FinanceLedgerClient({
                         </div>
                       </div>
 
-                      {/* Display Multi-File Attachments (Item 5) */}
+                      {/* Display Multi-File Attachments */}
                       {attachments.length > 0 && (
                         <div className="mt-2.5 space-y-1.5">
                           {attachments.map((file, idx) => (
@@ -1158,7 +1343,18 @@ export function FinanceLedgerClient({
                   <div key={idx} className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-950 space-y-2">
                     <div className="flex items-center justify-between text-[10px] text-zinc-400 border-b border-zinc-900 pb-1.5">
                       <span className="font-bold text-emerald-400">Revisi #{rev.revisionNumber}</span>
-                      <span>Disunting: {new Date(rev.editedAt).toLocaleString("id-ID")} oleh {rev.editedBy}</span>
+                      <div className="flex items-center gap-2">
+                        <span>Disunting: {new Date(rev.editedAt).toLocaleString("id-ID")}</span>
+                        {userRole === "ADMIN" && viewingRevisionsEntry.id && (
+                          <button
+                            type="button"
+                            onClick={() => handleUndoRevision(viewingRevisionsEntry.id!, rev.revisionNumber)}
+                            className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[9px] font-bold hover:bg-rose-500/30 transition cursor-pointer"
+                          >
+                            ↩️ Pulihkan / Undo
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
                       <div className="p-2 rounded bg-red-950/20 border border-red-900/40 text-red-300">
@@ -1181,7 +1377,7 @@ export function FinanceLedgerClient({
               <button
                 type="button"
                 onClick={() => setViewingRevisionsEntry(null)}
-                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-200 text-xs font-semibold hover:bg-zinc-700 transition"
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-200 text-xs font-semibold hover:bg-zinc-700 transition cursor-pointer"
               >
                 Tutup
               </button>
@@ -1193,13 +1389,13 @@ export function FinanceLedgerClient({
       {/* Admin/Accountant Edit Journal Entry Modal */}
       {isEditModalOpen && editingEntry && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl max-w-md w-full space-y-4 text-xs text-left">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl max-w-lg w-full space-y-4 text-xs text-left max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Sunting Jurnal Entry ({editingEntry.reference})</h3>
               <button
                 type="button"
                 onClick={() => setIsEditModalOpen(false)}
-                className="text-zinc-400 hover:text-white transition"
+                className="text-zinc-400 hover:text-white transition font-bold"
               >
                 ✕
               </button>
@@ -1221,7 +1417,7 @@ export function FinanceLedgerClient({
 
               <div>
                 <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
-                  Deskripsi Jurnal
+                  Deskripsi / Catatan Jurnal
                 </label>
                 <input
                   type="text"
@@ -1232,18 +1428,124 @@ export function FinanceLedgerClient({
                 />
               </div>
 
-              {/* Multi-File Upload in Edit Modal (Item 5) */}
+              {/* Edit Lines Builder */}
+              <div className="space-y-3 p-3 border border-zinc-800 bg-zinc-950/60 rounded-xl">
+                <div className="flex justify-between items-center border-b border-zinc-900 pb-2">
+                  <span className="text-[11px] font-bold text-white uppercase tracking-wider">
+                    Sunting Baris Akun Debit & Kredit
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditFormLines((prev) => [
+                          ...prev,
+                          { side: "DEBIT", financeAccountId: accounts[0]?.id ?? "", amount: 0 },
+                        ])
+                      }
+                      className="px-2 py-1 rounded border border-emerald-500/30 bg-emerald-500/10 text-[9px] font-bold text-emerald-400 hover:bg-emerald-500/20 cursor-pointer"
+                    >
+                      + Debit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditFormLines((prev) => [
+                          ...prev,
+                          { side: "CREDIT", financeAccountId: accounts[1]?.id ?? accounts[0]?.id ?? "", amount: 0 },
+                        ])
+                      }
+                      className="px-2 py-1 rounded border border-amber-500/30 bg-amber-500/10 text-[9px] font-bold text-amber-400 hover:bg-amber-500/20 cursor-pointer"
+                    >
+                      + Kredit
+                    </button>
+                  </div>
+                </div>
+
+                {editFormLines.map((line, idx) => (
+                  <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
+                    <div className="col-span-3">
+                      <select
+                        value={line.side}
+                        onChange={(e) => {
+                          const val = e.target.value as "DEBIT" | "CREDIT";
+                          setEditFormLines((prev) =>
+                            prev.map((l, i) => (i === idx ? { ...l, side: val } : l))
+                          );
+                        }}
+                        className={`w-full rounded border px-2 py-1 text-xs font-bold outline-none ${
+                          line.side === "DEBIT"
+                            ? "border-emerald-500/30 bg-emerald-950/40 text-emerald-400"
+                            : "border-amber-500/30 bg-amber-950/40 text-amber-400"
+                        }`}
+                      >
+                        <option value="DEBIT">DEBIT</option>
+                        <option value="CREDIT">CREDIT</option>
+                      </select>
+                    </div>
+
+                    <div className="col-span-5">
+                      <select
+                        value={line.financeAccountId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEditFormLines((prev) =>
+                            prev.map((l, i) => (i === idx ? { ...l, financeAccountId: val } : l))
+                          );
+                        }}
+                        className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-white outline-none"
+                      >
+                        {ledgerAccounts.map((account) => (
+                          <option key={account.id} value={account.id}>
+                            {account.code} {account.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="col-span-3">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1000"
+                        value={line.amount || ""}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setEditFormLines((prev) =>
+                            prev.map((l, i) => (i === idx ? { ...l, amount: val } : l))
+                          );
+                        }}
+                        className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs font-mono text-white outline-none"
+                      />
+                    </div>
+
+                    <div className="col-span-1 text-center">
+                      {editFormLines.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => setEditFormLines((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-zinc-500 hover:text-rose-400 font-bold text-xs cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Multi-File Upload in Edit Modal */}
               <MultiFileUploader
                 files={editAttachedFiles}
                 onChange={setEditAttachedFiles}
-                label="Kelola Lampiran Berkas (Bisa Banyak File: PDF, PNG, JPG, JPEG, DOCX, TXT)"
+                label="Kelola Lampiran Berkas (PDF, PNG, JPG, JPEG, DOCX, TXT)"
               />
 
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white cursor-pointer"
                 >
                   Batal
                 </button>

@@ -512,10 +512,39 @@ export function HrDashboardClient({
             <p className="text-3xl font-extrabold text-white mt-1">
               {initialBalance} <span className="text-zinc-500 text-sm font-medium">/ 12 Hari</span>
             </p>
+            <span className="text-[10px] text-emerald-400 mt-1 block font-medium">
+              {Math.round((initialBalance / 12) * 100)}% Jatah Cuti Tersedia
+            </span>
           </div>
-          <span className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg font-bold shadow-inner">
-            🌴
-          </span>
+
+          <div className="flex items-center gap-4">
+            <div className="relative h-16 w-16 flex items-center justify-center">
+              <svg className="h-full w-full -rotate-90 transform" viewBox="0 0 36 36">
+                <path
+                  className="text-zinc-800"
+                  strokeWidth="3.5"
+                  stroke="currentColor"
+                  fill="none"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+                <path
+                  className="text-emerald-500 transition-all duration-1000"
+                  strokeWidth="3.5"
+                  strokeDasharray={`${(initialBalance / 12) * 100}, 100`}
+                  strokeLinecap="round"
+                  stroke="currentColor"
+                  fill="none"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+              </svg>
+              <span className="absolute text-[11px] font-extrabold text-white font-mono">
+                {Math.round((initialBalance / 12) * 100)}%
+              </span>
+            </div>
+            <span className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg font-bold shadow-inner shrink-0">
+              🌴
+            </span>
+          </div>
         </div>
 
         {/* Leave Request Form */}
@@ -760,102 +789,112 @@ export function HrDashboardClient({
             </div>
           </div>
 
-          <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
-            {initialMyLeaves.length > 0 ? (
-              initialMyLeaves.map((leave) => {
-                let badgeClass = "text-zinc-400 bg-zinc-900 border-zinc-800";
-                if (leave.status === LeaveStatus.APPROVED) badgeClass = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
-                if (leave.status === LeaveStatus.REJECTED) badgeClass = "text-red-400 bg-red-500/10 border-red-500/20";
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-zinc-900 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                  <th className="pb-3 px-2">Nama & Jenis</th>
+                  <th className="pb-3 px-2">Tanggal Cuti</th>
+                  <th className="pb-3 px-2">Diajukan Pada</th>
+                  <th className="pb-3 px-2">Diproses Pada</th>
+                  <th className="pb-3 px-2 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-900/40">
+                {initialMyLeaves.length > 0 ? (
+                  initialMyLeaves.map((leave) => {
+                    let badgeClass = "text-zinc-400 bg-zinc-900 border-zinc-800";
+                    if (leave.status === LeaveStatus.APPROVED) badgeClass = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+                    if (leave.status === LeaveStatus.REJECTED) badgeClass = "text-red-400 bg-red-500/10 border-red-500/20";
 
-                return (
-                  <div
-                    key={leave.id}
-                    className="flex flex-col p-3.5 rounded-xl border border-zinc-900 bg-zinc-950/60 text-xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-semibold text-white block uppercase tracking-wide text-[10px]">
-                          {leave.type} {leave.userName ? `· ${leave.userName}` : ""}
-                        </span>
-                        <span className="text-zinc-500 mt-1 block">
+                    const meta = leave.metadata as any;
+                    const hasAttach = meta && meta.attachmentName && meta.attachmentData;
+
+                    return (
+                      <tr key={leave.id} className="hover:bg-zinc-900/30 transition">
+                        <td className="py-3 px-2">
+                          <span className="font-bold text-white block">
+                            {leave.userName || userName}
+                          </span>
+                          <span className="text-[10px] text-emerald-400 uppercase font-semibold">
+                            {leave.type}
+                          </span>
+                          {hasAttach && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveViewerFile({
+                                  name: meta.attachmentName,
+                                  data: meta.attachmentData,
+                                  leaveId: leave.id,
+                                  editedAt: meta.editedAt || null,
+                                });
+                              }}
+                              className="text-[9px] text-zinc-400 hover:text-emerald-300 underline block mt-0.5 cursor-pointer"
+                            >
+                              📁 {meta.attachmentName}
+                            </button>
+                          )}
+                        </td>
+                        <td className="py-3 px-2 text-zinc-300 font-mono text-[11px]">
                           {new Date(leave.startDate).toLocaleDateString("id-ID")} - {new Date(leave.endDate).toLocaleDateString("id-ID")}
-                        </span>
-                        <div className="text-[9px] text-zinc-600 mt-1">
-                          Diajukan: {new Date(leave.createdAt).toLocaleDateString("id-ID")}{" "}
-                          {leave.approvedAt && `| Diproses: ${new Date(leave.approvedAt).toLocaleDateString("id-ID")}`}
-                        </div>
-                        {(() => {
-                          const meta = leave.metadata as any;
-                          const hasAttach = meta && meta.attachmentName && meta.attachmentData;
-                          if (!hasAttach) return null;
-                          return (
-                            <div className="mt-2 p-1.5 rounded border border-zinc-900 bg-zinc-950/40 flex items-center justify-between gap-3">
-                              <span className="font-mono text-[9px] text-zinc-500 truncate max-w-[130px]">
-                                📁 {meta.attachmentName}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveViewerFile({
-                                    name: meta.attachmentName,
-                                    data: meta.attachmentData,
-                                    leaveId: leave.id,
-                                    editedAt: meta.editedAt || null,
-                                  });
-                                }}
-                                className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase shrink-0 cursor-pointer"
-                              >
-                                Lihat Berkas
-                              </button>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                      <div className="flex flex-col items-end gap-1.5">
-                        <span className={`px-2 py-0.5 rounded-full font-semibold border text-[9px] ${badgeClass}`}>
-                          {leave.status}
-                        </span>
-                        {userRole === "ADMIN" && (
-                          <div className="flex gap-1">
-                            {leave.status !== LeaveStatus.APPROVED && (
-                              <button
-                                onClick={() => handleLeaveReview(leave.id, LeaveStatus.APPROVED)}
-                                disabled={reviewLoading === leave.id}
-                                className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase disabled:opacity-50 cursor-pointer"
-                              >
-                                Setujui
-                              </button>
+                        </td>
+                        <td className="py-3 px-2 text-zinc-500 text-[11px]">
+                          {new Date(leave.createdAt).toLocaleDateString("id-ID")}
+                        </td>
+                        <td className="py-3 px-2 text-zinc-500 text-[11px]">
+                          {leave.approvedAt ? new Date(leave.approvedAt).toLocaleDateString("id-ID") : "-"}
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          <div className="flex flex-col items-end gap-1">
+                            <span className={`px-2 py-0.5 rounded-full font-semibold border text-[9px] ${badgeClass}`}>
+                              {leave.status}
+                            </span>
+                            {userRole === "ADMIN" && (
+                              <div className="flex gap-1 mt-0.5">
+                                {leave.status !== LeaveStatus.APPROVED && (
+                                  <button
+                                    onClick={() => handleLeaveReview(leave.id, LeaveStatus.APPROVED)}
+                                    disabled={reviewLoading === leave.id}
+                                    className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase disabled:opacity-50 cursor-pointer"
+                                  >
+                                    Setujui
+                                  </button>
+                                )}
+                                {leave.status !== LeaveStatus.REJECTED && (
+                                  <button
+                                    onClick={() => handleLeaveReview(leave.id, LeaveStatus.REJECTED)}
+                                    disabled={reviewLoading === leave.id}
+                                    className="text-[9px] font-bold text-red-400 hover:text-red-300 uppercase disabled:opacity-50 ml-1 cursor-pointer"
+                                  >
+                                    Tolak
+                                  </button>
+                                )}
+                              </div>
                             )}
-                            {leave.status !== LeaveStatus.REJECTED && (
+                            {leave.userId === userId && leave.status === LeaveStatus.PENDING && (
                               <button
-                                onClick={() => handleLeaveReview(leave.id, LeaveStatus.REJECTED)}
-                                disabled={reviewLoading === leave.id}
-                                className="text-[9px] font-bold text-red-400 hover:text-red-300 uppercase disabled:opacity-50 ml-1 cursor-pointer"
+                                onClick={() => handleLeaveCancel(leave.id)}
+                                disabled={cancelLoading === leave.id}
+                                className="text-[9px] font-bold text-amber-500 hover:text-amber-400 uppercase disabled:opacity-50 cursor-pointer"
                               >
-                                Tolak
+                                Batalkan
                               </button>
                             )}
                           </div>
-                        )}
-                        {leave.userId === userId && leave.status === LeaveStatus.PENDING && (
-                          <button
-                            onClick={() => handleLeaveCancel(leave.id)}
-                            disabled={cancelLoading === leave.id}
-                            className="text-[9px] font-bold text-amber-500 hover:text-amber-400 uppercase disabled:opacity-50 mt-1 cursor-pointer"
-                          >
-                            Batalkan
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="text-center py-8 text-zinc-500 text-xs">
-                Belum ada riwayat pengajuan cuti.
-              </div>
-            )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-zinc-500 text-xs">
+                      Belum ada riwayat pengajuan cuti.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 

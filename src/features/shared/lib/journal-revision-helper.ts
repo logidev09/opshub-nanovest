@@ -1,3 +1,11 @@
+export interface JournalRevisionLine {
+  side: "DEBIT" | "CREDIT";
+  financeAccountId: string;
+  accountCode?: string;
+  accountName?: string;
+  amount: number;
+}
+
 export interface JournalRevisionItem {
   revisionNumber: number;
   editedAt: string;
@@ -6,6 +14,8 @@ export interface JournalRevisionItem {
   newDescription: string;
   oldDate?: string;
   newDate?: string;
+  oldLines?: JournalRevisionLine[];
+  newLines?: JournalRevisionLine[];
 }
 
 export function parseJournalRevisions(fullDesc: string): {
