@@ -799,7 +799,6 @@ export function FinanceLedgerClient({
               </div>
             </div>
           </div>
-        </div>
 
         <div className="space-y-6">
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-2xl">
