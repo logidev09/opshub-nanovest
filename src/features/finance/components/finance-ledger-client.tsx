@@ -216,11 +216,11 @@ export function FinanceLedgerClient({
     const finalDescription = formatAttachmentsMessage(fullDescription, attachedFiles);
 
     const result = await postJournalEntryAction({
+      description: finalDescription,
       entryDate,
+      debitAccountId,
       creditAccountId,
       amount: Number(amount),
-      attachmentName: fileName || undefined,
-      attachmentData: fileBase64 || undefined,
     });
 
     setIsSubmitting(false);
@@ -229,8 +229,7 @@ export function FinanceLedgerClient({
       setDescription("");
       setNote("");
       setAmount("");
-      setFileName("");
-      setFileBase64("");
+      setAttachedFiles([]);
       router.refresh();
     } else {
       setMessage({ type: "error", text: result.error || "Gagal memposting jurnal." });
