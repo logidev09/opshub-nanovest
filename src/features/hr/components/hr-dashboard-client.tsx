@@ -459,22 +459,31 @@ export function HrDashboardClient({
 
   return (
     <div className="flex flex-col lg:flex-row gap-8 items-start w-full relative">
-      {/* Mobile Toggle Side Panel Banner */}
-      <div className="w-full flex items-center justify-between lg:hidden p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 shadow-lg">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs font-bold text-white uppercase tracking-wider">
-            HR Side Panel: {activeRightTab === "chat" ? "AI Copilot Chat" : "Riwayat Cuti"}
-          </span>
-        </div>
+      {/* Floating Action Button in Bottom Right Corner (Mobile/Tablet View - Task 1) */}
+      <div className="fixed bottom-6 right-6 z-40 lg:hidden">
         <button
           type="button"
           onClick={() => setIsMobileSidePanelOpen(!isMobileSidePanelOpen)}
-          className="px-3.5 py-2 rounded-xl bg-emerald-500 text-black text-xs font-bold transition hover:bg-emerald-400 active:scale-95 shadow-md"
+          className="px-4 py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs transition active:scale-95 shadow-2xl flex items-center gap-2 border border-emerald-300/50 cursor-pointer"
         >
-          {isMobileSidePanelOpen ? "Tutup Panel ✕" : "Buka Side Panel 💬"}
+          {isMobileSidePanelOpen ? (
+            <>✕ Tutup Side Panel</>
+          ) : (
+            <>
+              💬 Buka Side Panel 💬
+              <span className="h-2 w-2 rounded-full bg-black animate-ping" />
+            </>
+          )}
         </button>
       </div>
+
+      {/* Backdrop overlay for mobile drawer */}
+      {isMobileSidePanelOpen && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsMobileSidePanelOpen(false)}
+        />
+      )}
 
       {/* LEFT COLUMN: Main Form & Dashboard Controls */}
       <div className="w-full lg:flex-1 space-y-6 min-w-0">
@@ -727,10 +736,12 @@ export function HrDashboardClient({
         )}
       </div>
 
-      {/* RIGHT COLUMN: Tabbed Side Panel (AI Chat & Riwayat Cuti) */}
+      {/* RIGHT COLUMN: Tabbed Side Panel (AI Chat & Riwayat Cuti - Task 1 & 2) */}
       <div
-        className={`w-full lg:w-[480px] shrink-0 border border-zinc-900 bg-zinc-900/20 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[78vh] transition-all duration-300 ${
-          isMobileSidePanelOpen ? "block" : "hidden lg:flex"
+        className={`transition-all duration-300 overflow-hidden ${
+          isMobileSidePanelOpen
+            ? "fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[460px] bg-zinc-950/95 border-l border-zinc-800 shadow-2xl flex flex-col h-full lg:static lg:z-auto lg:w-[440px] xl:w-[480px] lg:h-[80vh] lg:rounded-2xl lg:border lg:border-zinc-900 lg:bg-zinc-900/20 lg:backdrop-blur-xl lg:sticky lg:top-20"
+            : "hidden lg:flex lg:w-[440px] xl:w-[480px] shrink-0 border border-zinc-900 bg-zinc-900/20 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl flex-col h-[80vh] sticky top-20"
         }`}
       >
         {/* Horizontal Tabs Header */}

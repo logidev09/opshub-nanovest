@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -11,6 +9,8 @@ import {
 } from "@/features/feedback/actions/system-feedback.actions";
 import { exportToCSV } from "@/features/shared/lib/export";
 import { FileViewerModal } from "@/features/shared/components/file-viewer-modal";
+import { MultiFileUploader } from "@/features/shared/components/multi-file-uploader";
+import { parseAttachments, formatAttachmentsMessage, AttachmentItem } from "@/features/shared/lib/attachment-helper";
 
 interface FeedbackItem {
   id: string;
@@ -36,26 +36,6 @@ function formatCategory(category: FeedbackCategory) {
   return category.replaceAll("_", " ");
 }
 
-function parseFeedbackMessage(fullMessage: string) {
-  const marker = "---ATTACHMENT_START---";
-  if (!fullMessage.includes(marker)) {
-    return { text: fullMessage, attachment: null };
-  }
-  const parts = fullMessage.split(marker);
-  const text = parts[0].trim();
-  const rest = parts[1] || "";
-  const nameMatch = rest.match(/NAME:\s*(.*?)\n/);
-  const dataClean = rest.split("DATA:")[1]?.split("---ATTACHMENT_END---")[0]?.trim() || "";
-  const nameClean = nameMatch ? nameMatch[1].trim() : "Attachment";
-  return {
-    text,
-    attachment: {
-      name: nameClean,
-      data: dataClean
-    }
-  };
-}
-
 export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = false }: FeedbackPanelProps) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -73,10 +53,8 @@ export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = fa
     editedAt?: string | null;
   } | null>(null);
 
-  // File Upload states
-  const [fileName, setFileName] = useState("");
-  const [fileBase64, setFileBase64] = useState("");
-  const [readingFile, setReadingFile] = useState(false);
+  // Multi-File Upload state
+  const [attachedFiles, setAttachedFiles] = useState<AttachmentItem[]>([]);
 
   const handleExportFeedback = () => {
     const headers = [
@@ -89,30 +67,11 @@ export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = fa
     const mappedData = feedbackItems.map((item) => ({
       category: formatCategory(item.category),
       submittedBy: item.submittedBy.name || item.submittedBy.email,
-      message: parseFeedbackMessage(item.message).text,
+      message: parseAttachments(item.message).text,
       status: item.status,
       createdAt: new Date(item.createdAt).toLocaleString("id-ID"),
     }));
     exportToCSV(mappedData, headers, `Laporan_Feedback_${module}`);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setReadingFile(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(",")[1];
-      setFileName(file.name);
-      setFileBase64(base64);
-      setReadingFile(false);
-    };
-    reader.onerror = () => {
-      alert("Gagal membaca file lokal.");
-      setReadingFile(false);
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,10 +79,7 @@ export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = fa
     setIsSubmitting(true);
     setStatusMessage(null);
 
-    let finalMessage = message.trim();
-    if (fileName && fileBase64) {
-      finalMessage = `${finalMessage}\n\n---ATTACHMENT_START---\nNAME: ${fileName}\nDATA: ${fileBase64}\n---ATTACHMENT_END---`;
-    }
+    const finalMessage = formatAttachmentsMessage(message.trim(), attachedFiles);
 
     const result = await submitSystemFeedbackAction({
       module,
@@ -141,8 +97,7 @@ export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = fa
     }
 
     setMessage("");
-    setFileName("");
-    setFileBase64("");
+    setAttachedFiles([]);
     setStatusMessage({
       type: "success",
       text: result.message || "Feedback berhasil dikirim.",
@@ -171,21 +126,12 @@ export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = fa
     router.refresh();
   };
 
-  const handleDownloadAttachment = (name: string, data: string) => {
-    const downloadLink = document.createElement("a");
-    downloadLink.href = `data:application/octet-stream;base64,${data}`;
-    downloadLink.download = name;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-  };
-
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr,1.4fr]">
       <div className="rounded-2xl border border-zinc-900 bg-zinc-900/20 p-6">
         <h3 className="text-base font-bold text-white">Feedback Manual ke Admin</h3>
         <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-          Kirim laporan bug, UI/UX, connection check, atau test case baru beserta file lampiran pendukung.
+          Kirim laporan bug, UI/UX, connection check, atau test case baru beserta berkas lampiran pendukung.
         </p>
 
         {statusMessage && (
@@ -201,13 +147,13 @@ export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = fa
         )}
 
         {isReadOnly ? (
-          <div className="rounded-xl border border-zinc-850 bg-zinc-950/40 p-6 text-center text-xs text-zinc-500 space-y-2">
+          <div className="mt-4 rounded-xl border border-zinc-850 bg-zinc-950/40 p-6 text-center text-xs text-zinc-500 space-y-2">
             <span className="text-lg block">🔒</span>
             <p className="font-semibold text-zinc-400">Mode Lihat-Saja (Read-Only)</p>
-            <p>Anda diizinkan melihat riwayat masukan ini, namun tidak memiliki hak untuk menambahkan atau mengirim feedback baru untuk modul ini.</p>
+            <p>Anda diizinkan melihat riwayat masukan ini, namun tidak memiliki hak untuk menambahkan feedback baru.</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
                 Kategori
@@ -238,35 +184,17 @@ export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = fa
               />
             </div>
 
-            {/* Attachment Upload Field */}
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Lampiran File (PNG, JPEG, PDF, DOCX, TXT)
-              </label>
-              <div className="relative flex items-center justify-between border border-zinc-850 rounded-xl bg-zinc-950 px-3.5 py-2">
-                <input
-                  type="file"
-                  accept=".png,.jpeg,.jpg,.pdf,.docx,.txt"
-                  onChange={handleFileChange}
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                  disabled={readingFile}
-                />
-                <span className="text-xs text-zinc-400 truncate max-w-[200px]">
-                  {fileName || "Pilih berkas..."}
-                </span>
-                <button
-                  type="button"
-                  className="px-3 py-1.5 rounded-lg bg-zinc-800 text-[10px] font-bold text-zinc-300 transition"
-                >
-                  {readingFile ? "Membaca..." : "Pilih File"}
-                </button>
-              </div>
-            </div>
+            {/* Multi-File Upload Field */}
+            <MultiFileUploader
+              files={attachedFiles}
+              onChange={setAttachedFiles}
+              label="Lampirkan Dokumen (Bisa Banyak Berkas: PDF, PNG, JPG, JPEG, DOCX, TXT)"
+            />
 
             <button
               type="submit"
-              disabled={isSubmitting || !message.trim() || readingFile}
-              className="w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-black transition hover:opacity-95 disabled:opacity-50"
+              disabled={isSubmitting || !message.trim()}
+              className="w-full rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-black transition hover:opacity-95 disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? "Mengirim..." : "Kirim Feedback"}
             </button>
@@ -294,7 +222,7 @@ export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = fa
         <div className="flex-1 overflow-y-auto space-y-3 pr-1">
           {feedbackItems.length > 0 ? (
             feedbackItems.map((item) => {
-              const parsed = parseFeedbackMessage(item.message);
+              const { text, attachments } = parseAttachments(item.message);
               return (
                 <div key={item.id} className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
                   <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -309,33 +237,37 @@ export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = fa
                     </span>
                   </div>
 
-                  <p className="text-sm leading-relaxed text-zinc-300">{parsed.text}</p>
+                  <p className="text-sm leading-relaxed text-zinc-300">{text}</p>
                   
-                  {/* Attachment Box in Inbox */}
-                  {parsed.attachment && (
-                    <div className="mt-3 p-2.5 border border-zinc-900 bg-zinc-950 rounded-xl flex items-center justify-between text-xs">
-                      <span className="text-zinc-400 font-mono truncate max-w-[200px]">
-                        📁 {parsed.attachment.name}
-                      </span>
-                      {userRole === "ADMIN" || (session?.user?.email && item.submittedBy.email === session.user.email) ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveViewerFile({
-                              name: parsed.attachment!.name,
-                              data: parsed.attachment!.data,
-                              feedbackId: item.id,
-                            });
-                          }}
-                          className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 uppercase transition cursor-pointer"
-                        >
-                          Lihat Berkas
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-zinc-600 font-mono italic">
-                          🔒 Lampiran Rahasia
-                        </span>
-                      )}
+                  {/* Multi-Attachment List in Inbox */}
+                  {attachments.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      {attachments.map((file, idx) => (
+                        <div key={idx} className="p-2 border border-zinc-900 bg-zinc-950 rounded-xl flex items-center justify-between text-xs">
+                          <span className="text-zinc-400 font-mono truncate max-w-[200px]">
+                            📁 {file.name}
+                          </span>
+                          {userRole === "ADMIN" || (session?.user?.email && item.submittedBy.email === session.user.email) ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveViewerFile({
+                                  name: file.name,
+                                  data: file.data,
+                                  feedbackId: item.id,
+                                });
+                              }}
+                              className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 uppercase transition cursor-pointer"
+                            >
+                              Lihat Berkas
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-zinc-600 font-mono italic">
+                              🔒 Rahasia
+                            </span>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
 

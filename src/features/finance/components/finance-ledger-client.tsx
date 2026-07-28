@@ -12,6 +12,13 @@ import {
 } from "@/features/finance/actions/ledger.actions";
 import { exportToCSV } from "@/features/shared/lib/export";
 import { FileViewerModal } from "@/features/shared/components/file-viewer-modal";
+import { MultiFileUploader } from "@/features/shared/components/multi-file-uploader";
+import { parseAttachments, formatAttachmentsMessage, AttachmentItem } from "@/features/shared/lib/attachment-helper";
+import {
+  parseJournalRevisions,
+  formatDescriptionWithRevisions,
+  JournalRevisionItem,
+} from "@/features/shared/lib/journal-revision-helper";
 
 interface LedgerAccountView {
   id: string;
@@ -57,26 +64,6 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-function parseAttachmentFromDescription(fullDesc: string) {
-  const marker = "---ATTACHMENT_START---";
-  if (!fullDesc.includes(marker)) {
-    return { text: fullDesc, attachment: null };
-  }
-  const parts = fullDesc.split(marker);
-  const text = parts[0].trim();
-  const rest = parts[1] || "";
-  const nameMatch = rest.match(/NAME:\s*(.*?)\n/);
-  const dataClean = rest.split("DATA:")[1]?.split("---ATTACHMENT_END---")[0]?.trim() || "";
-  const nameClean = nameMatch ? nameMatch[1].trim() : "Attachment";
-  return {
-    text,
-    attachment: {
-      name: nameClean,
-      data: dataClean
-    }
-  };
-}
-
 export function FinanceLedgerClient({
   accounts,
   entries,
@@ -96,18 +83,31 @@ export function FinanceLedgerClient({
   const expense = categoryTotals.EXPENSE || 0;
   const totalBS = asset + liability + equity;
 
-  // Tax Breakdown Table Deadline States (Editable by Admin/Accountant)
+  // Tax Breakdown Table States (Item 3.1)
   const [taxFilingDeadline, setTaxFilingDeadline] = useState("2026-07-31");
   const [taxPaymentDeadline, setTaxPaymentDeadline] = useState("2026-07-15");
   const [isEditingTaxDates, setIsEditingTaxDates] = useState(false);
 
-  // New Journal Entry Form States
+  // Payment dates per tax item
+  const [taxPaymentDates, setTaxPaymentDates] = useState<Record<string, string>>({
+    ppn: "2026-07-12",
+    pph21: "2026-07-15",
+    pph23: "2026-07-10",
+    pph42: "2026-07-14",
+    pphbadan: "Belum Disetor",
+  });
+
+  // Multi-file attachments per tax item
+  const [taxAttachmentsMap, setTaxAttachmentsMap] = useState<Record<string, AttachmentItem[]>>({});
+
+  // New Journal Entry Form States (Multi-file - Item 5)
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
-  const [note, setNote] = useState(""); // Catatan Opsional (Task 4)
+  const [note, setNote] = useState("");
   const [debitAccountId, setDebitAccountId] = useState(accounts[0]?.id ?? "");
   const [creditAccountId, setCreditAccountId] = useState(accounts[1]?.id ?? accounts[0]?.id ?? "");
   const [amount, setAmount] = useState("");
+  const [attachedFiles, setAttachedFiles] = useState<AttachmentItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -118,19 +118,19 @@ export function FinanceLedgerClient({
     entryId?: string;
     editedAt?: string | null;
   } | null>(null);
-  
-  // File upload for new entry
-  const [fileName, setFileName] = useState("");
-  const [fileBase64, setFileBase64] = useState("");
-  const [readingFile, setReadingFile] = useState(false);
+
+  // Revision History Modal State (Item 3.2)
+  const [viewingRevisionsEntry, setViewingRevisionsEntry] = useState<{
+    reference: string;
+    revisions: JournalRevisionItem[];
+  } | null>(null);
 
   // Edit Journal Entry States (Admin only)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState<JournalEntryView | null>(null);
   const [editEntryDate, setEditEntryDate] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editFileName, setEditFileName] = useState("");
-  const [editFileBase64, setEditFileBase64] = useState("");
+  const [editAttachedFiles, setEditAttachedFiles] = useState<AttachmentItem[]>([]);
   const [editLoading, setEditLoading] = useState(false);
 
   // Floating Chat states
@@ -186,53 +186,37 @@ export function FinanceLedgerClient({
     pickerInput.focus();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setReadingFile(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(",")[1];
-      if (isEdit) {
-        setEditFileName(file.name);
-        setEditFileBase64(base64);
-      } else {
-        setFileName(file.name);
-        setFileBase64(base64);
-      }
-      setReadingFile(false);
-    };
-    reader.onerror = () => {
-      alert("Gagal membaca berkas.");
-      setReadingFile(false);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleExportLedger = () => {
     const headers = [
       { key: "code", label: "Kode Akun" },
       { key: "name", label: "Nama Akun" },
       { key: "categoryLabel", label: "Kategori" },
-      { key: "debit", label: "Debit" },
-      { key: "credit", label: "Kredit" },
-      { key: "balance", label: "Saldo" },
+      { key: "debit", label: "Debit (IDR)" },
+      { key: "credit", label: "Kredit (IDR)" },
+      { key: "balance", label: "Saldo Akhir (IDR)" },
     ];
-    exportToCSV(ledgerAccounts, headers, "Laporan_Trial_Balance_Nanovest");
+    exportToCSV(ledgerAccounts, headers, "Laporan_Buku_Besar_Nanovest");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!amount || Number(amount) <= 0 || !description.trim()) {
+      setMessage({ type: "error", text: "Mohon isi nominal dan deskripsi jurnal secara benar." });
+      return;
+    }
+
     setIsSubmitting(true);
     setMessage(null);
 
-    const finalDesc = description.trim() + (note.trim() ? ` | Catatan: ${note.trim()}` : "");
+    let fullDescription = description.trim();
+    if (note.trim()) {
+      fullDescription += ` (Catatan: ${note.trim()})`;
+    }
+
+    const finalDescription = formatAttachmentsMessage(fullDescription, attachedFiles);
 
     const result = await postJournalEntryAction({
-      description: finalDesc,
       entryDate,
-      debitAccountId,
       creditAccountId,
       amount: Number(amount),
       attachmentName: fileName || undefined,
@@ -671,56 +655,88 @@ export function FinanceLedgerClient({
                     <th className="pb-2">Tarif</th>
                     <th className="pb-2 text-right">Estimasi Terutang</th>
                     <th className="pb-2">Status</th>
+                    <th className="pb-2 text-center">Tanggal Pembayaran (Sudah Dibayar Pada)</th>
                     <th className="pb-2 text-center">Batas Pelaporan (SPT)</th>
                     <th className="pb-2 text-center">Batas Pembayaran</th>
+                    <th className="pb-2 text-center">Lampiran Dokumen Pajak</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-900/60 text-zinc-300">
-                  <tr>
-                    <td className="py-2.5 font-bold text-white">PPN (12% Masa Juli)</td>
-                    <td className="py-2.5 font-mono">{formatCurrency(revenue)}</td>
-                    <td className="py-2.5">12%</td>
-                    <td className="py-2.5 text-right font-mono text-emerald-400">{formatCurrency(revenue * 0.12)}</td>
-                    <td className="py-2.5"><span className="text-[9px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">Belum Disetor</span></td>
-                    <td className="py-2.5 text-center font-mono text-zinc-400">{taxFilingDeadline}</td>
-                    <td className="py-2.5 text-center font-mono text-amber-300">{taxPaymentDeadline}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 font-bold text-white">PPh Pasal 21 (Gaji TER)</td>
-                    <td className="py-2.5 font-mono">{formatCurrency(145000000)}</td>
-                    <td className="py-2.5">TER Progressive</td>
-                    <td className="py-2.5 text-right font-mono text-emerald-400">{formatCurrency(11600000)}</td>
-                    <td className="py-2.5"><span className="text-[9px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">Belum Disetor</span></td>
-                    <td className="py-2.5 text-center font-mono text-zinc-400">2026-08-20</td>
-                    <td className="py-2.5 text-center font-mono text-amber-300">2026-08-10</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 font-bold text-white">PPh Pasal 23 (Jasa Vendor)</td>
-                    <td className="py-2.5 font-mono">{formatCurrency(45000000)}</td>
-                    <td className="py-2.5">2.0%</td>
-                    <td className="py-2.5 text-right font-mono text-emerald-400">{formatCurrency(900000)}</td>
-                    <td className="py-2.5"><span className="text-[9px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">Belum Disetor</span></td>
-                    <td className="py-2.5 text-center font-mono text-zinc-400">2026-08-20</td>
-                    <td className="py-2.5 text-center font-mono text-amber-300">2026-08-10</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 font-bold text-white">PPh Pasal 4(2) Sewa Gedung</td>
-                    <td className="py-2.5 font-mono">{formatCurrency(60000000)}</td>
-                    <td className="py-2.5">10.0%</td>
-                    <td className="py-2.5 text-right font-mono text-emerald-400">{formatCurrency(6000000)}</td>
-                    <td className="py-2.5"><span className="text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">Sudah Lunas</span></td>
-                    <td className="py-2.5 text-center font-mono text-zinc-400">2026-07-20</td>
-                    <td className="py-2.5 text-center font-mono text-zinc-400">2026-07-15</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 font-bold text-white">PPh Badan (22% Profit)</td>
-                    <td className="py-2.5 font-mono">{formatCurrency(netProfit > 0 ? netProfit : 0)}</td>
-                    <td className="py-2.5">22.0%</td>
-                    <td className="py-2.5 text-right font-mono text-emerald-400">{formatCurrency(netProfit > 0 ? netProfit * 0.22 : 0)}</td>
-                    <td className="py-2.5"><span className="text-[9px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">Estimasi Terutang</span></td>
-                    <td className="py-2.5 text-center font-mono text-zinc-400">2027-04-30</td>
-                    <td className="py-2.5 text-center font-mono text-amber-300">{taxPaymentDeadline}</td>
-                  </tr>
+                  {[
+                    { key: "ppn", name: "PPN (12% Masa Juli)", dpp: revenue, rate: "12%", est: revenue * 0.12, status: "Belum Disetor", fileDefault: "spt_ppn_juli.pdf" },
+                    { key: "pph21", name: "PPh Pasal 21 (Gaji TER)", dpp: 145000000, rate: "TER Progressive", est: 11600000, status: "Belum Disetor", fileDefault: "bukti_potong_pph21.pdf" },
+                    { key: "pph23", name: "PPh Pasal 23 (Jasa Vendor)", dpp: 45000000, rate: "2.0%", est: 900000, status: "Belum Disetor", fileDefault: "spt_pph23.pdf" },
+                    { key: "pph42", name: "PPh Pasal 4(2) Sewa Gedung", dpp: 60000000, rate: "10.0%", est: 6000000, status: "Sudah Lunas", fileDefault: "ntpn_pph42_lunas.pdf" },
+                    { key: "pphbadan", name: "PPh Badan (22% Profit)", dpp: netProfit > 0 ? netProfit : 0, rate: "22.0%", est: netProfit > 0 ? netProfit * 0.22 : 0, status: "Estimasi Terutang", fileDefault: "angsuran_pph25_badan.pdf" },
+                  ].map((tax) => {
+                    const files = taxAttachmentsMap[tax.key] || [];
+                    return (
+                      <tr key={tax.key}>
+                        <td className="py-2.5 font-bold text-white">{tax.name}</td>
+                        <td className="py-2.5 font-mono">{formatCurrency(tax.dpp)}</td>
+                        <td className="py-2.5">{tax.rate}</td>
+                        <td className="py-2.5 text-right font-mono text-emerald-400">{formatCurrency(tax.est)}</td>
+                        <td className="py-2.5">
+                          <span
+                            className={`text-[9px] px-2 py-0.5 rounded font-bold border ${
+                              tax.status === "Sudah Lunas"
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                            }`}
+                          >
+                            {tax.status}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-center font-mono text-emerald-400">
+                          {isEditingTaxDates ? (
+                            <input
+                              type="text"
+                              value={taxPaymentDates[tax.key] || ""}
+                              onChange={(e) =>
+                                setTaxPaymentDates((prev) => ({ ...prev, [tax.key]: e.target.value }))
+                              }
+                              className="w-28 rounded bg-zinc-950 border border-zinc-800 px-2 py-1 text-[11px] text-center text-emerald-300 outline-none"
+                            />
+                          ) : (
+                            taxPaymentDates[tax.key] || taxPaymentDeadline
+                          )}
+                        </td>
+                        <td className="py-2.5 text-center font-mono text-zinc-400">{taxFilingDeadline}</td>
+                        <td className="py-2.5 text-center font-mono text-amber-300">{taxPaymentDeadline}</td>
+                        <td className="py-2.5 text-center">
+                          {isEditingTaxDates ? (
+                            <MultiFileUploader
+                              files={files}
+                              onChange={(newFiles) =>
+                                setTaxAttachmentsMap((prev) => ({ ...prev, [tax.key]: newFiles }))
+                              }
+                              label="Upload Dokumen Pajak"
+                            />
+                          ) : files.length > 0 ? (
+                            <div className="flex flex-col gap-1 items-center">
+                              {files.map((f, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() =>
+                                    setActiveViewerFile({
+                                      name: f.name,
+                                      data: f.data,
+                                    })
+                                  }
+                                  className="text-[9px] font-bold text-emerald-400 hover:underline block truncate max-w-[120px]"
+                                >
+                                  📁 {f.name}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-zinc-600 italic">Belum ada berkas</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   <tr className="border-t-2 border-zinc-800 font-bold text-white bg-zinc-900/30">
                     <td className="py-3" colSpan={3}>
                       Total Estimasi Kewajiban Pajak Terutang
@@ -728,8 +744,8 @@ export function FinanceLedgerClient({
                     <td className="py-3 text-right font-mono text-emerald-400">
                       {formatCurrency(revenue * 0.12 + 11600000 + 900000 + 6000000 + (netProfit > 0 ? netProfit * 0.22 : 0))}
                     </td>
-                    <td colSpan={3} className="py-3 text-center font-mono text-xs text-amber-400">
-                      Pelaporan Akhir: <span className="underline">{taxFilingDeadline}</span> | Pembayaran Akhir: <span className="underline">{taxPaymentDeadline}</span>
+                    <td colSpan={5} className="py-3 text-center font-mono text-xs text-amber-400">
+                      Pelaporan Akhir (SPT): <span className="underline">{taxFilingDeadline}</span> | Pembayaran Akhir: <span className="underline">{taxPaymentDeadline}</span>
                     </td>
                   </tr>
                 </tbody>
@@ -894,35 +910,29 @@ export function FinanceLedgerClient({
                   />
                 </div>
 
-                {/* Optional Attachment Upload Field (Task 4) */}
                 <div>
                   <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                    Lampiran Berkas Bukti (PDF, PNG, JPEG, JPG, DOCX, TXT - Opsional)
+                    Catatan Opsional (Catatan / Memo)
                   </label>
-                  <div className="relative flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 px-3 py-2 text-xs">
-                    <input
-                      type="file"
-                      accept=".pdf,.png,.jpeg,.jpg,.docx,.txt"
-                      onChange={(e) => handleFileChange(e)}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                      disabled={readingFile}
-                    />
-                    <span className="text-zinc-400 truncate max-w-[170px]">
-                      {fileName || "Pilih berkas..."}
-                    </span>
-                    <button
-                      type="button"
-                      className="px-2.5 py-1 rounded bg-zinc-850 text-[10px] font-bold text-zinc-300"
-                    >
-                      Pilih File
-                    </button>
-                  </div>
+                  <input
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Catatan tambahan (mis. Memo khusus)"
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
+                  />
                 </div>
+
+                {/* Multi-File Upload Field (Item 5) */}
+                <MultiFileUploader
+                  files={attachedFiles}
+                  onChange={setAttachedFiles}
+                  label="Lampiran Berkas Bukti (Bisa Banyak File: PDF, PNG, JPG, JPEG, DOCX, TXT)"
+                />
 
                 <button
                   type="submit"
-                  disabled={isSubmitting || readingFile}
-                  className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-2.5 text-xs font-semibold text-black transition hover:opacity-95 disabled:opacity-50"
+                  disabled={isSubmitting}
+                  className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-2.5 text-xs font-semibold text-black transition hover:opacity-95 disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? "Menyimpan..." : "Post Balanced Entry"}
                 </button>
@@ -937,61 +947,95 @@ export function FinanceLedgerClient({
                 <div className="text-zinc-500 text-xs text-center py-4">Belum ada jurnal masuk.</div>
               ) : (
                 entries.map((entry) => {
-                  const parsed = parseAttachmentFromDescription(entry.description);
+                  const { cleanDescription, revisions } = parseJournalRevisions(entry.description);
+                  const { text, attachments } = parseAttachments(cleanDescription);
+                  const lastEdited = revisions.length > 0 ? revisions[revisions.length - 1].editedAt : null;
+
                   return (
                     <div key={entry.id} className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4">
                       <div className="mb-2 flex items-start justify-between gap-4">
                         <div>
-                          <p className="text-sm font-semibold text-white">{entry.reference}</p>
-                          <p className="text-xs text-zinc-500">{parsed.text}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-white">{entry.reference}</span>
+                            {revisions.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setViewingRevisionsEntry({
+                                    reference: entry.reference,
+                                    revisions,
+                                  })
+                                }
+                                className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-bold border border-emerald-500/20 hover:bg-emerald-500/20 transition cursor-pointer"
+                              >
+                                📜 Riwayat ({revisions.length})
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-xs text-zinc-300 mt-1">{text}</p>
+                          <div className="flex flex-wrap gap-3 text-[10px] text-zinc-500 mt-1 font-mono">
+                            <span>Di-entry: {new Date(entry.entryDate).toLocaleDateString("id-ID")}</span>
+                            {lastEdited && (
+                              <span className="text-emerald-400">
+                                Disunting: {new Date(lastEdited).toLocaleString("id-ID")}
+                              </span>
+                            )}
+                          </div>
                         </div>
+
                         <div className="flex flex-col items-end gap-1 shrink-0">
-                          <span className="text-[11px] text-zinc-500">
-                            {new Date(entry.entryDate).toLocaleDateString("id-ID")}
-                          </span>
-                          <div className="flex gap-2 items-center mt-1">
-                            {userRole === "ADMIN" && (
+                          <div className="flex gap-2 items-center">
+                            {(userRole === "ADMIN" || userDivision === "Accounting") && (
                               <>
                                 <button
                                   type="button"
                                   onClick={() => openEditModal(entry)}
-                                  className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold uppercase transition"
+                                  className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold uppercase transition cursor-pointer"
                                 >
                                   Sunting
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDelete(entry.id)}
-                                  disabled={isDeleting === entry.id}
-                                  className="text-[10px] text-rose-500 hover:text-rose-400 font-bold uppercase transition disabled:opacity-50"
-                                >
-                                  Hapus
-                                </button>
+                                {userRole === "ADMIN" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(entry.id)}
+                                    disabled={isDeleting === entry.id}
+                                    className="text-[10px] text-rose-500 hover:text-rose-400 font-bold uppercase transition disabled:opacity-50 cursor-pointer"
+                                  >
+                                    Hapus
+                                  </button>
+                                )}
                               </>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Display attachment if it exists */}
-                      {parsed.attachment && (
-                        <div className="mt-2.5 p-2 border border-zinc-900 bg-zinc-950 rounded-xl flex items-center justify-between text-xs">
-                          <span className="text-zinc-400 truncate max-w-[150px] font-mono text-[10px]">
-                            📁 {parsed.attachment.name}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveViewerFile({
-                                name: parsed.attachment!.name,
-                                data: parsed.attachment!.data,
-                                entryId: entry.id,
-                              });
-                            }}
-                            className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase transition"
-                          >
-                            Lihat Berkas
-                          </button>
+                      {/* Display Multi-File Attachments (Item 5) */}
+                      {attachments.length > 0 && (
+                        <div className="mt-2.5 space-y-1.5">
+                          {attachments.map((file, idx) => (
+                            <div
+                              key={idx}
+                              className="p-2 border border-zinc-900 bg-zinc-950 rounded-xl flex items-center justify-between text-xs"
+                            >
+                              <span className="text-zinc-400 truncate max-w-[170px] font-mono text-[10px]">
+                                📁 {file.name}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveViewerFile({
+                                    name: file.name,
+                                    data: file.data,
+                                    entryId: entry.id,
+                                  });
+                                }}
+                                className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase transition cursor-pointer"
+                              >
+                                Lihat Berkas
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       )}
 
@@ -1014,7 +1058,7 @@ export function FinanceLedgerClient({
         </div>
       </div>
 
-      {/* Floating Chat Widget (Task 2 & 6) */}
+      {/* Floating Chat Widget */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
         {isChatOpen && (
           <div className="mb-4 w-80 md:w-96 h-[480px] rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl">
@@ -1025,6 +1069,7 @@ export function FinanceLedgerClient({
                 <span className="text-xs font-bold text-white uppercase tracking-wider">Finance AI Assistant</span>
               </div>
               <button
+                type="button"
                 onClick={() => setIsChatOpen(false)}
                 className="text-zinc-400 hover:text-white transition text-xs"
               >
@@ -1086,21 +1131,83 @@ export function FinanceLedgerClient({
         )}
 
         <button
+          type="button"
           onClick={() => setIsChatOpen(!isChatOpen)}
-          className="h-16 w-16 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center text-black font-bold text-2xl shadow-xl hover:scale-105 active:scale-95 transition"
+          className="h-16 w-16 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center text-black font-bold text-2xl shadow-xl hover:scale-105 active:scale-95 transition cursor-pointer"
           title="Tanya Finance AI"
         >
           💬
         </button>
       </div>
 
-      {/* Admin Edit Journal Entry Modal (Task 3) */}
-      {isEditModalOpen && editingEntryId && (
+      {/* Revision History Modal (Item 3.2: Up to 10 Revisions) */}
+      {viewingRevisionsEntry && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl max-w-lg w-full space-y-4 text-xs text-left max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-start border-b border-zinc-800 pb-3 shrink-0">
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Riwayat Perubahan Jurnal</h3>
+                <span className="text-[10px] text-emerald-400 font-mono mt-0.5 block">
+                  Entry Reference: {viewingRevisionsEntry.reference} (Hingga 10 Perubahan Terakhir)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingRevisionsEntry(null)}
+                className="text-zinc-400 hover:text-white transition font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {viewingRevisionsEntry.revisions.length === 0 ? (
+                <p className="text-zinc-500 text-center py-4">Belum ada riwayat penyuntingan.</p>
+              ) : (
+                viewingRevisionsEntry.revisions.slice(-10).map((rev, idx) => (
+                  <div key={idx} className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-950 space-y-2">
+                    <div className="flex items-center justify-between text-[10px] text-zinc-400 border-b border-zinc-900 pb-1.5">
+                      <span className="font-bold text-emerald-400">Revisi #{rev.revisionNumber}</span>
+                      <span>Disunting: {new Date(rev.editedAt).toLocaleString("id-ID")} oleh {rev.editedBy}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                      <div className="p-2 rounded bg-red-950/20 border border-red-900/40 text-red-300">
+                        <span className="text-[9px] font-bold uppercase text-red-400 block mb-1">Sebelum:</span>
+                        <p>{rev.oldDescription}</p>
+                        {rev.oldDate && <span className="text-[9px] text-zinc-500 block mt-1">Tanggal: {rev.oldDate}</span>}
+                      </div>
+                      <div className="p-2 rounded bg-emerald-950/20 border border-emerald-900/40 text-emerald-300">
+                        <span className="text-[9px] font-bold uppercase text-emerald-400 block mb-1">Sesudah:</span>
+                        <p>{rev.newDescription}</p>
+                        {rev.newDate && <span className="text-[9px] text-zinc-500 block mt-1">Tanggal: {rev.newDate}</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-zinc-800 flex justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewingRevisionsEntry(null)}
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-200 text-xs font-semibold hover:bg-zinc-700 transition"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin/Accountant Edit Journal Entry Modal */}
+      {isEditModalOpen && editingEntry && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl max-w-md w-full space-y-4 text-xs text-left">
             <div className="flex justify-between items-start">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider text-zinc-400">Sunting Jurnal Entry (Admin)</h3>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Sunting Jurnal Entry ({editingEntry.reference})</h3>
               <button
+                type="button"
                 onClick={() => setIsEditModalOpen(false)}
                 className="text-zinc-400 hover:text-white transition"
               >
@@ -1124,7 +1231,7 @@ export function FinanceLedgerClient({
 
               <div>
                 <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
-                  Deskripsi
+                  Deskripsi Jurnal
                 </label>
                 <input
                   type="text"
@@ -1135,30 +1242,12 @@ export function FinanceLedgerClient({
                 />
               </div>
 
-              {/* Optional Edit File Attachment */}
-              <div>
-                <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
-                  Ubah Lampiran Berkas (PDF, PNG, JPEG, JPG, DOCX - Opsional)
-                </label>
-                <div className="relative flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 px-3.5 py-2">
-                  <input
-                    type="file"
-                    accept=".pdf,.png,.jpeg,.jpg,.docx"
-                    onChange={(e) => handleFileChange(e, true)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                    disabled={readingFile}
-                  />
-                  <span className="text-zinc-400 truncate max-w-[200px]">
-                    {editFileName || "Pilih berkas baru..."}
-                  </span>
-                  <button
-                    type="button"
-                    className="px-2.5 py-1 rounded bg-zinc-850 text-[10px] font-bold text-zinc-300 animate-pulse"
-                  >
-                    Pilih File
-                  </button>
-                </div>
-              </div>
+              {/* Multi-File Upload in Edit Modal (Item 5) */}
+              <MultiFileUploader
+                files={editAttachedFiles}
+                onChange={setEditAttachedFiles}
+                label="Kelola Lampiran Berkas (Bisa Banyak File: PDF, PNG, JPG, JPEG, DOCX, TXT)"
+              />
 
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -1170,10 +1259,10 @@ export function FinanceLedgerClient({
                 </button>
                 <button
                   type="submit"
-                  disabled={editLoading || readingFile}
-                  className="px-5 py-2 rounded-xl bg-emerald-500 text-black font-semibold hover:opacity-95 disabled:opacity-50"
+                  disabled={editLoading}
+                  className="px-5 py-2 rounded-xl bg-emerald-500 text-black font-semibold hover:opacity-95 disabled:opacity-50 cursor-pointer"
                 >
-                  {editLoading ? "Menyimpan..." : "Simpan Perubahan"}
+                  {editLoading ? "Menyimpan..." : "Simpan Perubahan (Catat Revisi)"}
                 </button>
               </div>
             </form>
@@ -1181,7 +1270,7 @@ export function FinanceLedgerClient({
         </div>
       )}
 
-      {/* File Viewer Modal (Task 6) */}
+      {/* File Viewer Modal */}
       {activeViewerFile && (
         <FileViewerModal
           fileName={activeViewerFile.name}
@@ -1192,11 +1281,15 @@ export function FinanceLedgerClient({
           onSaveText={async (newText) => {
             const res = await updateJournalEntryAttachmentAction(activeViewerFile.entryId!, newText);
             if (res.success && res.data) {
-              setActiveViewerFile(prev => prev ? {
-                ...prev,
-                data: Buffer.from(newText, "utf-8").toString("base64"),
-                editedAt: (res.data as any).metadata?.editedAt || null
-              } : null);
+              setActiveViewerFile((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      data: Buffer.from(newText, "utf-8").toString("base64"),
+                      editedAt: (res.data as any).metadata?.editedAt || null,
+                    }
+                  : null
+              );
               router.refresh();
             }
             return res;
