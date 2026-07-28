@@ -209,6 +209,17 @@ export async function getJournalEditPermissionStatusAction() {
     if (latest.action === "APPROVE_JOURNAL_EDIT_PERMISSION") status = "APPROVED";
     if (latest.action === "REJECT_JOURNAL_EDIT_PERMISSION") status = "REJECTED";
 
+    return {
+      success: true,
+      status,
+      requestedAt: requestedLog ? requestedLog.createdAt.toISOString() : null,
+      processedAt: processedLog ? processedLog.createdAt.toISOString() : null,
+    };
+  } catch (err) {
+    return { success: false, status: "NONE", requestedAt: null, processedAt: null };
+  }
+}
+
 export async function submitDraftJournalChangesAction(draftsJson: string) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
