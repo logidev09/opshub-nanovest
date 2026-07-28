@@ -248,6 +248,8 @@ export function FinanceLedgerClient({
     } else {
       alert(result.error || "Gagal menghapus jurnal");
     }
+  };
+
   // Trigger Edit Mode (Admin/Accountant - Item 3.2 Revision History)
   const openEditModal = (entry: JournalEntryView) => {
     const { cleanDescription } = parseJournalRevisions(entry.description);
@@ -799,6 +801,7 @@ export function FinanceLedgerClient({
               </div>
             </div>
           </div>
+        </div>
 
         <div className="space-y-6">
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-2xl">
