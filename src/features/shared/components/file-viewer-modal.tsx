@@ -73,6 +73,34 @@ export function FileViewerModal({
     }
   };
 
+  const handleOpenInNewTab = () => {
+    try {
+      const cleanBase64 = fileData.includes(",") ? fileData.split(",")[1] : fileData.trim();
+      const mime = isPdf
+        ? "application/pdf"
+        : isImage
+        ? `image/${ext === "jpg" ? "jpeg" : ext}`
+        : "text/plain";
+      
+      const byteCharacters = atob(cleanBase64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mime });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank");
+    } catch (e) {
+      console.error("Gagal membuka file di tab baru:", e);
+      const mime = isPdf ? "application/pdf" : isImage ? `image/${ext === "jpg" ? "jpeg" : ext}` : "text/plain";
+      const win = window.open();
+      if (win) {
+        win.document.write(`<iframe src="data:${mime};base64,${cleanBase64Data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+      }
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-2 sm:p-4 overflow-y-auto"
@@ -90,30 +118,39 @@ export function FileViewerModal({
               <span className="text-[10px] text-zinc-400 font-mono block truncate max-w-xs sm:max-w-md">{fileName}</span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-8 w-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white transition flex items-center justify-center font-bold text-sm cursor-pointer shrink-0 z-[102]"
-            title="Tutup Modal"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleOpenInNewTab}
+              className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer"
+            >
+              🔗 Buka di Tab Baru
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-8 w-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white transition flex items-center justify-center font-bold text-sm cursor-pointer shrink-0 z-[102]"
+              title="Tutup Modal"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 bg-zinc-950/60 text-xs flex flex-col justify-center">
           {isImage && (
-            <div className="flex justify-center items-center py-2 bg-zinc-950 rounded-xl border border-zinc-850 p-2">
+            <div className="flex flex-col justify-center items-center py-2 bg-zinc-950 rounded-xl border border-zinc-850 p-2">
               <img
                 src={`data:image/${ext === "jpg" ? "jpeg" : ext};base64,${cleanBase64Data}`}
                 alt={fileName}
-                className="max-h-[45vh] sm:max-h-[50vh] max-w-full object-contain rounded-lg shadow-xl"
+                className="max-h-[40vh] sm:max-h-[45vh] max-w-full object-contain rounded-lg shadow-xl"
               />
             </div>
           )}
 
           {isPdf && (
-            <div className="flex-1 w-full min-h-[350px] h-[55vh] rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950 flex flex-col relative">
+            <div className="flex-1 w-full min-h-[300px] h-[45vh] rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950 flex flex-col relative">
               <iframe
                 src={pdfBlobUrl || `data:application/pdf;base64,${cleanBase64Data}`}
                 title={fileName}
@@ -123,7 +160,7 @@ export function FileViewerModal({
           )}
 
           {isTxt && (
-            <div className="flex flex-col h-[50vh] space-y-3">
+            <div className="flex flex-col h-[40vh] space-y-3">
               <div className="flex justify-between items-center text-[10px] text-zinc-400">
                 <span>{readOnly ? "File teks (Read-Only):" : "Ekstensi file teks dapat langsung disunting:"}</span>
                 {editedAt && (
@@ -162,8 +199,15 @@ export function FileViewerModal({
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={handleOpenInNewTab}
+              className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition cursor-pointer"
+            >
+              🔗 Buka di Tab Baru
+            </button>
+            <button
+              type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold rounded-xl bg-zinc-800 text-zinc-300 hover:text-white transition active:scale-[0.98] cursor-pointer"
+              className="px-4 py-1.5 text-xs font-semibold rounded-xl bg-zinc-800 text-zinc-300 hover:text-white transition active:scale-[0.98] cursor-pointer"
             >
               Tutup
             </button>
@@ -172,7 +216,7 @@ export function FileViewerModal({
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-500 text-black hover:bg-emerald-400 disabled:opacity-50 transition active:scale-[0.98] cursor-pointer"
+                className="px-5 py-1.5 text-xs font-bold rounded-xl bg-emerald-500 text-black hover:bg-emerald-400 disabled:opacity-50 transition active:scale-[0.98] cursor-pointer"
               >
                 {saving ? "Menyimpan..." : "Simpan Perubahan Text"}
               </button>

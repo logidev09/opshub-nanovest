@@ -733,280 +733,261 @@ export function HrDashboardClient({
         )}
       </div>
 
-      {/* RIGHT COLUMN: Tabbed Side Panel (AI Chat & Riwayat Cuti - Task 1 & 2) */}
-      <div
-        className={`transition-all duration-300 overflow-hidden ${
-          isMobileSidePanelOpen
-            ? "fixed right-0 top-0 bottom-0 z-[99999] w-full sm:w-[400px] bg-zinc-950 border-l border-zinc-800 shadow-2xl flex flex-col h-full lg:static lg:z-auto lg:w-[400px] xl:w-[440px] lg:h-[80vh] lg:rounded-2xl lg:border lg:border-zinc-900 lg:bg-zinc-900/20 lg:backdrop-blur-xl lg:sticky lg:top-20"
-            : "hidden lg:flex lg:w-[400px] xl:w-[440px] shrink-0 border border-zinc-900 bg-zinc-900/20 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl flex-col h-[80vh] sticky top-20"
-        }`}
-      >
-        {/* Horizontal Tabs Header */}
-        <div className="border-b border-zinc-900 bg-zinc-950/60 p-2 flex items-center justify-between shrink-0">
-          <div className="flex gap-1.5 w-full">
-            <button
-              type="button"
-              onClick={() => setActiveRightTab("chat")}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                activeRightTab === "chat"
-                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm"
-                  : "text-zinc-400 hover:text-white hover:bg-zinc-900"
-              }`}
-            >
-              💬 AI Chat & RAG
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveRightTab("leaves")}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                activeRightTab === "leaves"
-                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm"
-                  : "text-zinc-400 hover:text-white hover:bg-zinc-900"
-              }`}
-            >
-              🌴 Riwayat Cuti ({initialMyLeaves.length})
-            </button>
+        {/* Leave History List Card (Moved to main page) */}
+        <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20 backdrop-blur-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-zinc-900 pb-3">
+            <h3 className="text-base font-bold text-white">
+              {userRole === "HR" || userRole === "ADMIN" ? "Riwayat Cuti Seluruh Karyawan" : "Riwayat Cuti Saya"}
+            </h3>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleExportCuti}
+                className="px-3 py-1.5 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-xs font-bold text-zinc-300 hover:text-white transition cursor-pointer"
+              >
+                📥 Cuti (CSV)
+              </button>
+              {(userRole === "HR" || userRole === "ADMIN") && (
+                <button
+                  type="button"
+                  onClick={handleExportKaryawan}
+                  className="px-3 py-1.5 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-xs font-bold text-zinc-300 hover:text-white transition cursor-pointer"
+                >
+                  📥 Karyawan (CSV)
+                </button>
+              )}
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsMobileSidePanelOpen(false)}
-            className="lg:hidden ml-2 p-1.5 text-zinc-400 hover:text-white"
-            title="Tutup Panel"
-          >
-            ✕
-          </button>
+
+          <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+            {initialMyLeaves.length > 0 ? (
+              initialMyLeaves.map((leave) => {
+                let badgeClass = "text-zinc-400 bg-zinc-900 border-zinc-800";
+                if (leave.status === LeaveStatus.APPROVED) badgeClass = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+                if (leave.status === LeaveStatus.REJECTED) badgeClass = "text-red-400 bg-red-500/10 border-red-500/20";
+
+                return (
+                  <div
+                    key={leave.id}
+                    className="flex flex-col p-3.5 rounded-xl border border-zinc-900 bg-zinc-950/60 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-semibold text-white block uppercase tracking-wide text-[10px]">
+                          {leave.type} {leave.userName ? `· ${leave.userName}` : ""}
+                        </span>
+                        <span className="text-zinc-500 mt-1 block">
+                          {new Date(leave.startDate).toLocaleDateString("id-ID")} - {new Date(leave.endDate).toLocaleDateString("id-ID")}
+                        </span>
+                        <div className="text-[9px] text-zinc-600 mt-1">
+                          Diajukan: {new Date(leave.createdAt).toLocaleDateString("id-ID")}{" "}
+                          {leave.approvedAt && `| Diproses: ${new Date(leave.approvedAt).toLocaleDateString("id-ID")}`}
+                        </div>
+                        {(() => {
+                          const meta = leave.metadata as any;
+                          const hasAttach = meta && meta.attachmentName && meta.attachmentData;
+                          if (!hasAttach) return null;
+                          return (
+                            <div className="mt-2 p-1.5 rounded border border-zinc-900 bg-zinc-950/40 flex items-center justify-between gap-3">
+                              <span className="font-mono text-[9px] text-zinc-500 truncate max-w-[130px]">
+                                📁 {meta.attachmentName}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveViewerFile({
+                                    name: meta.attachmentName,
+                                    data: meta.attachmentData,
+                                    leaveId: leave.id,
+                                    editedAt: meta.editedAt || null,
+                                  });
+                                }}
+                                className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase shrink-0 cursor-pointer"
+                              >
+                                Lihat Berkas
+                              </button>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className={`px-2 py-0.5 rounded-full font-semibold border text-[9px] ${badgeClass}`}>
+                          {leave.status}
+                        </span>
+                        {userRole === "ADMIN" && (
+                          <div className="flex gap-1">
+                            {leave.status !== LeaveStatus.APPROVED && (
+                              <button
+                                onClick={() => handleLeaveReview(leave.id, LeaveStatus.APPROVED)}
+                                disabled={reviewLoading === leave.id}
+                                className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase disabled:opacity-50 cursor-pointer"
+                              >
+                                Setujui
+                              </button>
+                            )}
+                            {leave.status !== LeaveStatus.REJECTED && (
+                              <button
+                                onClick={() => handleLeaveReview(leave.id, LeaveStatus.REJECTED)}
+                                disabled={reviewLoading === leave.id}
+                                className="text-[9px] font-bold text-red-400 hover:text-red-300 uppercase disabled:opacity-50 ml-1 cursor-pointer"
+                              >
+                                Tolak
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {leave.status === LeaveStatus.PENDING && (
+                          <button
+                            onClick={() => handleLeaveCancel(leave.id)}
+                            disabled={cancelLoading === leave.id}
+                            className="text-[9px] font-bold text-amber-500 hover:text-amber-400 uppercase disabled:opacity-50 mt-1 cursor-pointer"
+                          >
+                            Batalkan
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-8 text-zinc-500 text-xs">
+                Belum ada riwayat pengajuan cuti.
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* TAB 1: Chat AI & RAG */}
-        {activeRightTab === "chat" && (
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            {/* Top Bar for RAG Button */}
-            <div className="px-4 py-3 border-b border-zinc-900 bg-zinc-950/40 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs font-bold text-white">Nanovest HR Copilot</span>
-              </div>
+      {/* Floating Action Button (Live Chat Bubble at Bottom-Right) */}
+      <div
+        style={{ position: "fixed", bottom: "24px", right: "24px", zIndex: 99999 }}
+        className="flex flex-col items-end"
+      >
+        <button
+          type="button"
+          onClick={() => setIsMobileSidePanelOpen(!isMobileSidePanelOpen)}
+          className="h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-2xl shadow-2xl flex items-center justify-center border border-emerald-300/50 cursor-pointer active:scale-95 transition"
+          title="Buka AI Copilot Chat"
+        >
+          {isMobileSidePanelOpen ? "✕" : "💬"}
+        </button>
+      </div>
+
+      {/* Floating AI Chatbot Mini Window */}
+      {isMobileSidePanelOpen && (
+        <div
+          style={{ position: "fixed", zIndex: 99998 }}
+          className="bottom-20 right-4 sm:right-6 w-[calc(100vw-32px)] sm:w-[400px] h-[520px] max-h-[80vh] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-white"
+        >
+          {/* Header */}
+          <div className="px-4 py-3 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs font-bold text-white uppercase tracking-wider">Nanovest HR Copilot AI</span>
+            </div>
+            <div className="flex items-center gap-2">
               {(userRole === "HR" || userRole === "ADMIN") && (
                 <Link
                   href="/dashboard/hr/policies"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-bold text-black hover:bg-emerald-400 transition"
+                  className="text-[10px] font-bold text-emerald-400 hover:underline"
                 >
-                  📁 Kelola Dokumen RAG
+                  📁 Dokumen RAG
                 </Link>
               )}
+              <button
+                type="button"
+                onClick={() => setIsMobileSidePanelOpen(false)}
+                className="text-zinc-400 hover:text-white text-base font-bold transition ml-2 cursor-pointer"
+                title="Tutup Chat"
+              >
+                ✕
+              </button>
             </div>
-
-            {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-              {messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center px-4">
-                  <div className="h-10 w-10 rounded-2xl bg-zinc-900 border border-zinc-850 flex items-center justify-center text-emerald-400 mb-3 shadow-xl">
-                    💬
-                  </div>
-                  <h3 className="text-xs font-semibold text-white">Tanya HR Copilot</h3>
-                  <p className="text-[11px] text-zinc-500 mt-1 max-w-xs leading-relaxed">
-                    Tanyakan kebijakan jatah cuti, aturan HR, atau ketik langsung pengajuan cuti Anda.
-                  </p>
-                </div>
-              ) : (
-                messages.map((m) => (
-                  <div
-                    key={m.id}
-                    className={`flex gap-2.5 text-xs max-w-[90%] ${
-                      m.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
-                    }`}
-                  >
-                    <ChatAvatar role={m.role} image={m.role === "user" ? userImage : null} />
-                    <div className={`space-y-1 ${m.role === "user" ? "items-end text-right" : ""}`}>
-                      <p className={`text-[9px] font-semibold uppercase tracking-wider ${m.role === "user" ? "text-emerald-300" : "text-zinc-500"}`}>
-                        {m.role === "user" ? `${userName}` : "HR Copilot"}
-                      </p>
-                      <div
-                        className={`rounded-2xl px-3.5 py-2.5 leading-relaxed whitespace-pre-wrap ${
-                          m.role === "user"
-                            ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
-                            : "bg-zinc-900/80 text-zinc-200 border border-zinc-850"
-                        }`}
-                      >
-                        {renderMessageText(m)}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-
-              {chatAlert && (
-                <div className="flex gap-2.5 max-w-[92%] mr-auto items-start">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-red-500/30 bg-red-950 text-red-500 font-bold text-xs">
-                    🛡️
-                  </div>
-                  <div className="rounded-2xl px-3.5 py-2.5 bg-red-950/30 text-red-400 border border-red-900/50 leading-relaxed text-xs">
-                    <span className="font-bold block mb-1">{chatAlert.title}</span>
-                    {chatAlert.message}
-                  </div>
-                </div>
-              )}
-
-              {isChatLoading && !chatAlert && (
-                <div className="flex gap-2 mr-auto items-center">
-                  <ChatAvatar role="assistant" />
-                  <div className="flex gap-1.5 p-2.5 rounded-2xl bg-zinc-900/40 border border-zinc-900">
-                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.2s]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.4s]" />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Chat Input Box */}
-            <form onSubmit={handleSubmit} className="p-3 border-t border-zinc-900 bg-zinc-950/40 shrink-0">
-              <div className="flex gap-2">
-                <input
-                  value={input}
-                  onChange={handleInputChange}
-                  placeholder="Ketik pertanyaan atau ajukan cuti..."
-                  className="flex-1 rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-emerald-500 transition"
-                />
-                <button
-                  type="submit"
-                  disabled={isChatLoading || !input.trim()}
-                  className="px-3.5 rounded-xl bg-emerald-500 text-black hover:opacity-95 disabled:opacity-50 transition active:scale-[0.98] text-xs font-bold"
-                >
-                  Kirim
-                </button>
-              </div>
-            </form>
           </div>
-        )}
 
-        {/* TAB 2: Riwayat Cuti */}
-        {activeRightTab === "leaves" && (
-          <div className="flex-1 flex flex-col p-4 overflow-hidden min-h-0">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 shrink-0">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                {userRole === "HR" || userRole === "ADMIN" ? "Riwayat Cuti Seluruh Karyawan" : "Riwayat Cuti Saya"}
-              </h3>
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleExportCuti}
-                  className="px-2 py-1 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-[9px] font-bold text-zinc-300 hover:text-white transition"
-                >
-                  📥 Cuti (CSV)
-                </button>
-                {(userRole === "HR" || userRole === "ADMIN") && (
-                  <button
-                    type="button"
-                    onClick={handleExportKaryawan}
-                    className="px-2 py-1 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-[9px] font-bold text-zinc-300 hover:text-white transition"
-                  >
-                    📥 Karyawan (CSV)
-                  </button>
-                )}
+          {/* Chat Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-800">
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center px-4">
+                <div className="h-10 w-10 rounded-2xl bg-zinc-900 border border-zinc-850 flex items-center justify-center text-emerald-400 mb-3 shadow-xl">
+                  💬
+                </div>
+                <h3 className="text-xs font-semibold text-white">Tanya HR Copilot</h3>
+                <p className="text-[11px] text-zinc-500 mt-1 max-w-xs leading-relaxed">
+                  Tanyakan kebijakan jatah cuti, aturan HR, atau ketik langsung pengajuan cuti Anda.
+                </p>
               </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              {initialMyLeaves.length > 0 ? (
-                initialMyLeaves.map((leave) => {
-                  let badgeClass = "text-zinc-400 bg-zinc-900 border-zinc-800";
-                  if (leave.status === LeaveStatus.APPROVED) badgeClass = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
-                  if (leave.status === LeaveStatus.REJECTED) badgeClass = "text-red-400 bg-red-500/10 border-red-500/20";
-
-                  return (
+            ) : (
+              messages.map((m) => (
+                <div
+                  key={m.id}
+                  className={`flex gap-2.5 text-xs max-w-[90%] ${
+                    m.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
+                  }`}
+                >
+                  <ChatAvatar role={m.role} image={m.role === "user" ? userImage : null} />
+                  <div className={`space-y-1 ${m.role === "user" ? "items-end text-right" : ""}`}>
+                    <p className={`text-[9px] font-semibold uppercase tracking-wider ${m.role === "user" ? "text-emerald-300" : "text-zinc-500"}`}>
+                      {m.role === "user" ? `${userName}` : "HR Copilot"}
+                    </p>
                     <div
-                      key={leave.id}
-                      className="flex flex-col p-3 rounded-xl border border-zinc-900 bg-zinc-950/60 text-xs"
+                      className={`rounded-2xl px-3.5 py-2.5 leading-relaxed whitespace-pre-wrap ${
+                        m.role === "user"
+                          ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                          : "bg-zinc-900/80 text-zinc-200 border border-zinc-850"
+                      }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-semibold text-white block uppercase tracking-wide text-[10px]">
-                            {leave.type} {leave.userName ? `· ${leave.userName}` : ""}
-                          </span>
-                          <span className="text-zinc-500 mt-1 block">
-                            {new Date(leave.startDate).toLocaleDateString("id-ID")} - {new Date(leave.endDate).toLocaleDateString("id-ID")}
-                          </span>
-                          <div className="text-[9px] text-zinc-600 mt-1">
-                            Diajukan: {new Date(leave.createdAt).toLocaleDateString("id-ID")}{" "}
-                            {leave.approvedAt && `| Diproses: ${new Date(leave.approvedAt).toLocaleDateString("id-ID")}`}
-                          </div>
-                          {(() => {
-                            const meta = leave.metadata as any;
-                            const hasAttach = meta && meta.attachmentName && meta.attachmentData;
-                            if (!hasAttach) return null;
-                            return (
-                              <div className="mt-2 p-1.5 rounded border border-zinc-900 bg-zinc-950/40 flex items-center justify-between gap-3">
-                                <span className="font-mono text-[9px] text-zinc-500 truncate max-w-[130px]">
-                                  📁 {meta.attachmentName}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveViewerFile({
-                                      name: meta.attachmentName,
-                                      data: meta.attachmentData,
-                                      leaveId: leave.id,
-                                      editedAt: meta.editedAt || null,
-                                    });
-                                  }}
-                                  className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase shrink-0"
-                                >
-                                  Lihat Berkas
-                                </button>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                        <div className="flex flex-col items-end gap-1.5">
-                          <span className={`px-2 py-0.5 rounded-full font-semibold border text-[9px] ${badgeClass}`}>
-                            {leave.status}
-                          </span>
-                          {userRole === "ADMIN" && (
-                            <div className="flex gap-1">
-                              {leave.status !== LeaveStatus.APPROVED && (
-                                <button
-                                  onClick={() => handleLeaveReview(leave.id, LeaveStatus.APPROVED)}
-                                  disabled={reviewLoading === leave.id}
-                                  className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase disabled:opacity-50"
-                                >
-                                  Setujui
-                                </button>
-                              )}
-                              {leave.status !== LeaveStatus.REJECTED && (
-                                <button
-                                  onClick={() => handleLeaveReview(leave.id, LeaveStatus.REJECTED)}
-                                  disabled={reviewLoading === leave.id}
-                                  className="text-[9px] font-bold text-red-400 hover:text-red-300 uppercase disabled:opacity-50 ml-1"
-                                >
-                                  Tolak
-                                </button>
-                              )}
-                            </div>
-                          )}
-                          {leave.status === LeaveStatus.PENDING && (
-                            <button
-                              onClick={() => handleLeaveCancel(leave.id)}
-                              disabled={cancelLoading === leave.id}
-                              className="text-[9px] font-bold text-amber-500 hover:text-amber-400 uppercase disabled:opacity-50 mt-1"
-                            >
-                              Batalkan
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                      {renderMessageText(m)}
                     </div>
-                  );
-                })
-              ) : (
-                <div className="text-center py-8 text-zinc-500 text-xs">
-                  Belum ada riwayat pengajuan cuti.
+                  </div>
                 </div>
-              )}
-            </div>
+              ))
+            )}
+
+            {chatAlert && (
+              <div className="flex gap-2.5 max-w-[92%] mr-auto items-start">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-red-500/30 bg-red-950 text-red-500 font-bold text-xs">
+                  🛡️
+                </div>
+                <div className="rounded-2xl px-3.5 py-2.5 bg-red-950/30 text-red-400 border border-red-900/50 leading-relaxed text-xs">
+                  <span className="font-bold block mb-1">{chatAlert.title}</span>
+                  {chatAlert.message}
+                </div>
+              </div>
+            )}
+
+            {isChatLoading && !chatAlert && (
+              <div className="flex gap-2 mr-auto items-center">
+                <ChatAvatar role="assistant" />
+                <div className="flex gap-1.5 p-2.5 rounded-2xl bg-zinc-900/40 border border-zinc-900">
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.2s]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.4s]" />
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+
+          {/* Input Box */}
+          <form onSubmit={handleSubmit} className="p-3 border-t border-zinc-900 bg-zinc-950 shrink-0">
+            <div className="flex gap-2">
+              <input
+                value={input}
+                onChange={handleInputChange}
+                placeholder="Ketik pertanyaan atau ajukan cuti..."
+                className="flex-1 rounded-xl border border-zinc-850 bg-zinc-900 px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-emerald-500 transition"
+              />
+              <button
+                type="submit"
+                disabled={isChatLoading || !input.trim()}
+                className="px-3.5 rounded-xl bg-emerald-500 text-black hover:opacity-95 disabled:opacity-50 transition active:scale-[0.98] text-xs font-bold cursor-pointer"
+              >
+                Kirim
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Profile Detail Modal (Task 4) */}
       {selectedProfile && (
