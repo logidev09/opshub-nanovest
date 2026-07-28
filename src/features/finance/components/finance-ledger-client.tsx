@@ -548,20 +548,6 @@ export function FinanceLedgerClient({
 
   return (
     <div className="space-y-8 relative">
-      {/* RAG Documents Manager Navigation */}
-      {(userRole === "ADMIN" || userDivision === "Accounting") && (
-        <div className="flex justify-start mb-2">
-          <Link
-            href="/dashboard/finance/policies"
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 px-4 py-2.5 text-xs font-bold text-black transition active:scale-95 shadow-md shadow-emerald-500/10"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Kelola Dokumen RAG (PSAK/Pajak)
-          </Link>
-        </div>
-      )}
 
       {/* Visual Charts & Trial Balance Section (Side-by-Side like Overview Page) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1404,24 +1390,33 @@ export function FinanceLedgerClient({
         </div>
       </div>
 
-      {/* Floating Chat Widget (Item 6: For ADMIN, HR, and ACCOUNTANT) */}
-      {(userRole === "ADMIN" || userRole === "HR" || userRole === "ACCOUNTANT") && (
+      {/* Floating Chat Widget (Req 1, 5, 6: For ADMIN, HR, and ACCOUNTANT) */}
+      {(userRole === "ADMIN" || userRole === "ACCOUNTANT" || userRole === "HR" || userDivision === "Accounting" || userDivision === "Human Resources") && (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
           {isChatOpen && (
             <div className="mb-4 w-[340px] sm:w-[360px] h-[480px] rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl">
-              {/* Header (Item 6: Dokumen RAG Button moved inside AI Chat window header) */}
+              {/* Header */}
               <div className="px-4 py-3 bg-zinc-900/80 border-b border-zinc-900 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-xs font-bold text-white uppercase tracking-wider">Finance AI Assistant</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Link
-                    href="/dashboard/finance/policies"
-                    className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-[9px] font-bold border border-emerald-500/30 hover:bg-emerald-500/30 transition cursor-pointer"
-                  >
-                    📑 Kelola Dokumen RAG
-                  </Link>
+                  {(userRole === "ADMIN" || userRole === "ACCOUNTANT" || userDivision === "Accounting") ? (
+                    <Link
+                      href="/dashboard/finance/policies"
+                      className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-[9px] font-bold border border-emerald-500/30 hover:bg-emerald-500/30 transition cursor-pointer"
+                    >
+                      📑 Kelola Dokumen RAG (PSAK)
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/dashboard/finance/policies"
+                      className="px-2 py-1 rounded-lg bg-zinc-800 text-zinc-300 text-[9px] font-bold border border-zinc-700 hover:bg-zinc-700 transition cursor-pointer"
+                    >
+                      👁️ Lihat Dokumen RAG (Read-Only)
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={() => setIsChatOpen(false)}

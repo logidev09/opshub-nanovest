@@ -276,27 +276,29 @@ export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = fa
                   <div className="mt-3 pt-2 border-t border-zinc-900/60 flex flex-wrap gap-x-4 gap-y-1 text-[9px] text-zinc-600 font-mono">
                     <span>Diajukan: {new Date(item.createdAt).toLocaleString("id-ID")}</span>
                     {item.status !== "OPEN" && item.updatedAt && (
-                      <span className="text-emerald-500">Diproses: {new Date(item.updatedAt).toLocaleString("id-ID")}</span>
+                      <span className="text-emerald-500">Diproses Admin: {new Date(item.updatedAt).toLocaleString("id-ID")}</span>
                     )}
                   </div>
 
-                  {userRole === "ADMIN" && (
-                    <div className="mt-3 flex gap-2 pt-2 border-t border-zinc-900/40">
-                      {(["OPEN", "IN_REVIEW", "RESOLVED"] as FeedbackStatus[]).map((status) => (
-                        <button
-                          key={status}
-                          type="button"
-                          disabled={changingId === item.id}
-                          onClick={() => handleStatusChange(item.id, status)}
-                          className={`rounded-lg border px-3 py-1.5 text-[10px] font-semibold transition active:scale-95 ${
-                            item.status === status
-                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                              : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
-                          }`}
-                        >
-                          {changingId === item.id ? "Memproses..." : status}
-                        </button>
-                      ))}
+                  {(userRole === "ADMIN" || !isReadOnly) && (
+                    <div className="mt-3 flex gap-2 pt-2 border-t border-zinc-900/40 items-center justify-between">
+                      <div className="flex gap-2">
+                        {(["OPEN", "IN_REVIEW", "RESOLVED"] as FeedbackStatus[]).map((status) => (
+                          <button
+                            key={status}
+                            type="button"
+                            disabled={changingId === item.id}
+                            onClick={() => handleStatusChange(item.id, status)}
+                            className={`rounded-lg border px-3 py-1.5 text-[10px] font-semibold transition active:scale-95 cursor-pointer ${
+                              item.status === status
+                                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                                : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                            }`}
+                          >
+                            {changingId === item.id ? "Memproses..." : status}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
