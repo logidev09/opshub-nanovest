@@ -250,46 +250,6 @@ export function FinanceLedgerClient({
     }
   };
 
-  // Trigger Edit Mode (Admin only)
-  const openEditModal = (entry: JournalEntryView) => {
-    const parsed = parseAttachmentFromDescription(entry.description);
-    setEditingEntryId(entry.id);
-    setEditEntryDate(entry.entryDate.slice(0, 10));
-    setEditDescription(parsed.text);
-    setEditFileName(parsed.attachment?.name || "");
-    setEditFileBase64(parsed.attachment?.data || "");
-    setIsEditModalOpen(true);
-  };
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingEntryId) return;
-
-    setEditLoading(true);
-    const result = await updateJournalEntryAction(editingEntryId, {
-      entryDate: editEntryDate,
-      description: editDescription,
-      attachmentName: editFileName || undefined,
-      attachmentData: editFileBase64 || undefined,
-    });
-    setEditLoading(false);
-
-    if (result.success) {
-      setIsEditModalOpen(false);
-      router.refresh();
-    } else {
-      alert(result.error || "Gagal memperbarui jurnal entry.");
-    }
-  };
-
-  const handleDownloadAttachment = (name: string, data: string) => {
-    const link = document.createElement("a");
-    link.href = `data:application/octet-stream;base64,${data}`;
-    link.download = name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   // Financial Insights Calculations
   const netProfit = revenue - expense;
