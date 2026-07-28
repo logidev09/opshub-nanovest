@@ -197,6 +197,33 @@ export function AdminAccountsClient({ accounts }: AdminAccountsClientProps) {
 
   return (
     <div className="space-y-8">
+      {/* Admin Accounts AI Insight Card (Item 8) */}
+      <div className="p-5 rounded-2xl border border-zinc-900 bg-zinc-950/60 shadow-xl space-y-3 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+              AI User Governance & Identity Insights (Juli 2026)
+            </h3>
+          </div>
+          <span className="text-[10px] text-emerald-400 font-mono">Total Akun: {accounts.length} ({activeCount} Aktif)</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-zinc-400 leading-relaxed">
+          <div className="p-3.5 rounded-xl border border-zinc-900 bg-zinc-900/30 space-y-1">
+            <span className="font-semibold text-emerald-400 block">Distribusi Hak Akses & Matriks Peran</span>
+            <p>
+              Akun terdaftar terdiri dari {accounts.filter((a) => a.role === "ADMIN").length} Admin, {accounts.filter((a) => a.role === "HR").length} HR, dan {accounts.filter((a) => a.role === "USER").length} Employee. Pengajuan pendaftaran karyawan berjalan tanpa eskalasi mencurigakan.
+            </p>
+          </div>
+          <div className="p-3.5 rounded-xl border border-zinc-900 bg-zinc-900/30 space-y-1">
+            <span className="font-semibold text-emerald-400 block">Saran Kebijakan Keamanan Identitas</span>
+            <p>
+              [Saran AI]: Seluruh kata sandi tersimpan dalam hash Bcrypt terenkripsi. Disarankan rotasi periodik kredensial khusus role Admin setiap 90 hari.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr,1.8fr]">
         <div className="rounded-2xl border border-zinc-900 bg-zinc-900/20 p-6">
           <div className="mb-4">

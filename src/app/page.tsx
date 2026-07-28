@@ -226,7 +226,7 @@ export default function Home() {
               rel="noreferrer"
               className="text-xs text-emerald-400 hover:text-emerald-300 transition underline font-mono flex items-center gap-1"
             >
-              ☕ {cafeUrl}
+              {cafeUrl}
             </Link>
           </div>
         </div>

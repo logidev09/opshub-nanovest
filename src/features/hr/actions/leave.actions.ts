@@ -158,3 +158,172 @@ export async function updateLeaveAttachmentAction(leaveId: string, newText: stri
     return { success: false, error: getErrorMessage(error, "Gagal memperbarui berkas.") };
   }
 }
+
+export async function requestLeaveStatusChangeAction(leaveId: string, desiredStatus: LeaveStatus, reason: string) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+
+  const user = session.user as SessionUser;
+  try {
+    const leave = await prisma.leaveRequest.findUnique({ where: { id: leaveId } });
+    if (!leave) return { success: false, error: "Cuti tidak ditemukan." };
+
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "REQUEST_LEAVE_STATUS_CHANGE",
+        entity: "LeaveStatusPermission",
+        entityId: leaveId,
+        newValue: {
+          leaveId,
+          desiredStatus,
+          reason,
+          requestedAt: new Date().toISOString(),
+          requestedBy: user.id,
+          status: "PENDING",
+        },
+      },
+    });
+
+    revalidatePath("/dashboard/hr");
+    return { success: true, message: "Permohonan izin perubahan status cuti berhasil diajukan ke Admin." };
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err, "Gagal mengajukan izin perubahan status cuti.") };
+  }
+}
+
+export async function approveLeaveStatusChangeAction(leaveId: string, approved: boolean) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+
+  const user = session.user as SessionUser;
+  if (user.role !== "ADMIN") {
+    return { success: false, error: "Hanya Admin yang dapat menyetujui izin perubahan status cuti." };
+  }
+
+  try {
+    const lastRequest = await prisma.auditLog.findFirst({
+      where: { entity: "LeaveStatusPermission", entityId: leaveId, action: "REQUEST_LEAVE_STATUS_CHANGE" },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!lastRequest || !lastRequest.newValue) {
+      return { success: false, error: "Tidak ada permohonan perubahan status yang menggantung." };
+    }
+
+    const reqData = lastRequest.newValue as any;
+    const processedAt = new Date().toISOString();
+
+    if (approved && reqData.desiredStatus) {
+      const leave = await prisma.leaveRequest.findUnique({ where: { id: leaveId } });
+      if (leave) {
+        const prevRevisionMarker = "---LEAVE_REVISIONS_START---";
+        let existingRevisions: any[] = [];
+        const currentReason = leave.reason || "";
+
+        if (currentReason.includes(prevRevisionMarker)) {
+          const parts = currentReason.split(prevRevisionMarker);
+          const jsonStr = parts[1]?.split("---LEAVE_REVISIONS_END---")[0]?.trim() || "";
+          try {
+            existingRevisions = JSON.parse(jsonStr);
+          } catch (e) {}
+        }
+
+        const newRevItem = {
+          revisionNumber: existingRevisions.length + 1,
+          editedAt: processedAt,
+          editedBy: user.id,
+          requestedAt: reqData.requestedAt,
+          processedAt,
+          ratifiedAt: processedAt,
+          oldStatus: leave.status,
+          newStatus: reqData.desiredStatus,
+        };
+
+        const updatedRevisions = [...existingRevisions, newRevItem].slice(-10);
+        const cleanBaseReason = currentReason.split("---LEAVE_REVISIONS_START---")[0].trim();
+        const newReasonWithRev = `${cleanBaseReason}\n\n---LEAVE_REVISIONS_START---\n${JSON.stringify(
+          updatedRevisions
+        )}\n---LEAVE_REVISIONS_END---`;
+
+        await prisma.leaveRequest.update({
+          where: { id: leaveId },
+          data: {
+            status: reqData.desiredStatus,
+            approvedBy: user.id,
+            approvedAt: new Date(),
+            reason: newReasonWithRev,
+          },
+        });
+      }
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: approved ? "APPROVE_LEAVE_STATUS_CHANGE" : "REJECT_LEAVE_STATUS_CHANGE",
+        entity: "LeaveStatusPermission",
+        entityId: leaveId,
+        newValue: {
+          leaveId,
+          approved,
+          processedAt,
+          requestedAt: reqData.requestedAt,
+        },
+      },
+    });
+
+    revalidatePath("/dashboard/hr");
+    return {
+      success: true,
+      message: approved ? "Izin disetujui & status cuti berhasil diperbarui." : "Permohonan perubahan status cuti ditolak.",
+    };
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err, "Gagal memproses persetujuan status cuti.") };
+  }
+}
+
+export async function undoLeaveStatusRevisionAction(leaveId: string, revisionNumber: number) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return { success: false, error: "Akses tidak diizinkan." };
+  }
+
+  const user = session.user as SessionUser;
+  if (user.role !== "ADMIN") {
+    return { success: false, error: "Hanya Admin yang dapat memulihkan status cuti sebelumnya." };
+  }
+
+  try {
+    const leave = await prisma.leaveRequest.findUnique({ where: { id: leaveId } });
+    if (!leave) return { success: false, error: "Cuti tidak ditemukan." };
+
+    const marker = "---LEAVE_REVISIONS_START---";
+    if (!leave.reason || !leave.reason.includes(marker)) {
+      return { success: false, error: "Tidak ada riwayat revisi untuk dipulihkan." };
+    }
+
+    const parts = leave.reason.split(marker);
+    const jsonStr = parts[1]?.split("---LEAVE_REVISIONS_END---")[0]?.trim() || "";
+    const revisions: any[] = JSON.parse(jsonStr);
+
+    const targetRev = revisions.find((r) => r.revisionNumber === revisionNumber);
+    if (!targetRev) return { success: false, error: "Versi revisi tidak ditemukan." };
+
+    await prisma.leaveRequest.update({
+      where: { id: leaveId },
+      data: {
+        status: targetRev.oldStatus,
+      },
+    });
+
+    revalidatePath("/dashboard/hr");
+    return { success: true, message: `Status cuti berhasil dipulihkan ke status sebelumnya (${targetRev.oldStatus}).` };
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err, "Gagal memulihkan status cuti.") };
+  }
+}

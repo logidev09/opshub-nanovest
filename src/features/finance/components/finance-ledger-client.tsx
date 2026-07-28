@@ -458,6 +458,31 @@ export function FinanceLedgerClient({
     setChatMessages((prev) => [...prev, { role: "user", text: userText }]);
     setChatLoading(true);
 
+    // Role-based Finance AI Assistant Guardrails (Item 7)
+    if (userRole === "HR") {
+      const lower = userText.toLowerCase();
+      if (
+        lower.includes("post") ||
+        lower.includes("simpan") ||
+        lower.includes("sunting") ||
+        lower.includes("perubahan") ||
+        lower.includes("hapus") ||
+        lower.includes("buat jurnal")
+      ) {
+        setTimeout(() => {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              text: "Akses Anda sebagai HR Specialist di Finance Ledger bersifat Read-Only. Anda dapat melihat dan menganalisis laporan kesehatan finansial, rasio neraca, dan estimasi pajak, tetapi tidak memiliki wewenang untuk memposting atau melakukan perubahan entri jurnal.",
+            },
+          ]);
+          setChatLoading(false);
+        }, 400);
+        return;
+      }
+    }
+
     try {
       const res = await fetch("/api/chat/finance", {
         method: "POST",
@@ -1017,24 +1042,37 @@ export function FinanceLedgerClient({
 
                   {journalFormLines.map((line, idx) => (
                     <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
-                      <div className="col-span-3">
-                        <select
-                          value={line.side}
-                          onChange={(e) => {
-                            const val = e.target.value as "DEBIT" | "CREDIT";
+                      <div className="col-span-4 flex rounded-lg border border-zinc-800 bg-zinc-950 p-1 font-bold text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() =>
                             setJournalFormLines((prev) =>
-                              prev.map((l, i) => (i === idx ? { ...l, side: val } : l))
-                            );
-                          }}
-                          className={`w-full rounded-lg border px-2 py-1.5 text-xs font-bold outline-none [color-scheme:dark] ${
+                              prev.map((l, i) => (i === idx ? { ...l, side: "DEBIT" } : l))
+                            )
+                          }
+                          className={`flex-1 py-1 rounded-md transition cursor-pointer ${
                             line.side === "DEBIT"
-                              ? "border-emerald-500/30 bg-emerald-950/40 text-emerald-400"
-                              : "border-amber-500/30 bg-amber-950/40 text-amber-400"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm"
+                              : "text-zinc-500 hover:text-zinc-300"
                           }`}
                         >
-                          <option value="DEBIT" className="bg-zinc-950 text-emerald-400 font-bold">DEBIT</option>
-                          <option value="CREDIT" className="bg-zinc-950 text-amber-400 font-bold">CREDIT</option>
-                        </select>
+                          DEBIT
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setJournalFormLines((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, side: "CREDIT" } : l))
+                            )
+                          }
+                          className={`flex-1 py-1 rounded-md transition cursor-pointer ${
+                            line.side === "CREDIT"
+                              ? "bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-sm"
+                              : "text-zinc-500 hover:text-zinc-300"
+                          }`}
+                        >
+                          KREDIT
+                        </button>
                       </div>
 
                       <div className="col-span-5">
@@ -1366,87 +1404,97 @@ export function FinanceLedgerClient({
         </div>
       </div>
 
-      {/* Floating Chat Widget */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
-        {isChatOpen && (
-          <div className="mb-4 w-[340px] sm:w-[360px] h-[480px] rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl">
-            {/* Header */}
-            <div className="px-4 py-3 bg-zinc-900/60 border-b border-zinc-900 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs font-bold text-white uppercase tracking-wider">Finance AI Assistant</span>
+      {/* Floating Chat Widget (Item 6: For ADMIN, HR, and ACCOUNTANT) */}
+      {(userRole === "ADMIN" || userRole === "HR" || userRole === "ACCOUNTANT") && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+          {isChatOpen && (
+            <div className="mb-4 w-[340px] sm:w-[360px] h-[480px] rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl">
+              {/* Header (Item 6: Dokumen RAG Button moved inside AI Chat window header) */}
+              <div className="px-4 py-3 bg-zinc-900/80 border-b border-zinc-900 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">Finance AI Assistant</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/dashboard/finance/policies"
+                    className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-[9px] font-bold border border-emerald-500/30 hover:bg-emerald-500/30 transition cursor-pointer"
+                  >
+                    📑 Kelola Dokumen RAG
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setIsChatOpen(false)}
+                    className="text-zinc-400 hover:text-white transition text-xs cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsChatOpen(false)}
-                className="text-zinc-400 hover:text-white transition text-xs cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
 
-            {/* Message Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
-              {chatMessages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex flex-col max-w-[85%] ${
-                    msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start"
-                  }`}
-                >
-                  <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold mb-1">
-                    {msg.role === "user" ? "Anda" : "Finance AI"}
-                  </span>
+              {/* Message Area */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+                {chatMessages.map((msg, idx) => (
                   <div
-                    className={`rounded-2xl px-3.5 py-2.5 leading-relaxed whitespace-pre-wrap ${
-                      msg.role === "user"
-                        ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
-                        : "bg-zinc-900/80 text-zinc-300 border border-zinc-900"
+                    key={idx}
+                    className={`flex flex-col max-w-[85%] ${
+                      msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start"
                     }`}
                   >
-                    {msg.text}
+                    <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold mb-1">
+                      {msg.role === "user" ? "Anda" : "Finance AI"}
+                    </span>
+                    <div
+                      className={`rounded-2xl px-3.5 py-2.5 leading-relaxed whitespace-pre-wrap ${
+                        msg.role === "user"
+                          ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                          : "bg-zinc-900/80 text-zinc-300 border border-zinc-900"
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {chatLoading && (
-                <div className="flex gap-2 items-center text-zinc-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:0.2s]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:0.4s]" />
-                  <span className="text-[10px]">AI sedang menganalisis ledger...</span>
-                </div>
-              )}
+                {chatLoading && (
+                  <div className="flex gap-2 items-center text-zinc-500">
+                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:0.2s]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:0.4s]" />
+                    <span className="text-[10px]">AI sedang menganalisis ledger...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Input Form */}
+              <form onSubmit={handleChatSend} className="p-3 border-t border-zinc-900 bg-zinc-950/40 flex gap-2">
+                <input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Tanyakan analisis keuangan/pajak..."
+                  className="flex-1 rounded-xl border border-zinc-850 bg-zinc-900 px-3.5 py-2 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim() || chatLoading}
+                  className="px-3 rounded-xl bg-emerald-500 text-black hover:opacity-95 disabled:opacity-50 font-bold cursor-pointer"
+                >
+                  Kirim
+                </button>
+              </form>
             </div>
+          )}
 
-            {/* Input Form */}
-            <form onSubmit={handleChatSend} className="p-3 border-t border-zinc-900 bg-zinc-950/40 flex gap-2">
-              <input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Tanyakan analisis keuangan/pajak..."
-                className="flex-1 rounded-xl border border-zinc-850 bg-zinc-900 px-3.5 py-2 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/80"
-              />
-              <button
-                type="submit"
-                disabled={!chatInput.trim() || chatLoading}
-                className="px-3 rounded-xl bg-emerald-500 text-black hover:opacity-95 disabled:opacity-50 font-bold cursor-pointer"
-              >
-                Kirim
-              </button>
-            </form>
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setIsChatOpen(!isChatOpen)}
-          className="h-16 w-16 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center text-black font-extrabold text-3xl shadow-2xl hover:scale-105 active:scale-95 transition cursor-pointer"
-          title="Tanya Finance AI"
-        >
-          💬
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => setIsChatOpen(!isChatOpen)}
+            className="h-16 w-16 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center text-black font-extrabold text-3xl shadow-2xl hover:scale-105 active:scale-95 transition cursor-pointer"
+            title="Tanya Finance AI"
+          >
+            💬
+          </button>
+        </div>
+      )}
 
       {/* Revision History Modal (Item 3.2: Up to 10 Revisions) */}
       {viewingRevisionsEntry && (
@@ -1597,24 +1645,37 @@ export function FinanceLedgerClient({
 
                 {editFormLines.map((line, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
-                    <div className="col-span-3">
-                      <select
-                        value={line.side}
-                        onChange={(e) => {
-                          const val = e.target.value as "DEBIT" | "CREDIT";
+                    <div className="col-span-4 flex rounded-lg border border-zinc-800 bg-zinc-950 p-1 font-bold text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() =>
                           setEditFormLines((prev) =>
-                            prev.map((l, i) => (i === idx ? { ...l, side: val } : l))
-                          );
-                        }}
-                        className={`w-full rounded border px-2 py-1 text-xs font-bold outline-none ${
+                            prev.map((l, i) => (i === idx ? { ...l, side: "DEBIT" } : l))
+                          )
+                        }
+                        className={`flex-1 py-1 rounded-md transition cursor-pointer ${
                           line.side === "DEBIT"
-                            ? "border-emerald-500/30 bg-emerald-950/40 text-emerald-400"
-                            : "border-amber-500/30 bg-amber-950/40 text-amber-400"
+                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm"
+                            : "text-zinc-500 hover:text-zinc-300"
                         }`}
                       >
-                        <option value="DEBIT">DEBIT</option>
-                        <option value="CREDIT">CREDIT</option>
-                      </select>
+                        DEBIT
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditFormLines((prev) =>
+                            prev.map((l, i) => (i === idx ? { ...l, side: "CREDIT" } : l))
+                          )
+                        }
+                        className={`flex-1 py-1 rounded-md transition cursor-pointer ${
+                          line.side === "CREDIT"
+                            ? "bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-sm"
+                            : "text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        KREDIT
+                      </button>
                     </div>
 
                     <div className="col-span-5">

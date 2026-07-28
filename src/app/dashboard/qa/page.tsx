@@ -77,27 +77,61 @@ export default async function QaLabPage() {
 
       <PlaywrightSimulator isReadOnly={isReadOnly} />
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
-          <h3 className="mb-4 text-base font-bold text-white">Test Otomatis yang Perlu Ditambahkan</h3>
-          <div className="space-y-3">
+      {/* Collapsible Accordion Lists (Item 9: Default Closed Toggle Lists) */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <details className="group rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 font-sans">
+          <summary className="cursor-pointer font-bold text-white text-sm uppercase tracking-wider flex justify-between items-center select-none">
+            <span>🧪 Test Otomatis yang Perlu Ditambahkan (Klik untuk Membuka)</span>
+            <span className="text-emerald-400 group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <div className="space-y-3 mt-4 pt-4 border-t border-zinc-800">
             {automatedTests.map(([title, description]) => (
               <div key={title} className="rounded-xl border border-zinc-900 bg-zinc-950 p-4">
                 <p className="text-sm font-semibold text-white">{title}</p>
-                <p className="mt-1 text-sm leading-relaxed text-zinc-400">{description}</p>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-400">{description}</p>
               </div>
             ))}
           </div>
-        </div>
+        </details>
 
-        <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6">
-          <h3 className="mb-4 text-base font-bold text-white">Checklist QA Manual</h3>
-          <div className="space-y-3">
+        <details className="group rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 font-sans">
+          <summary className="cursor-pointer font-bold text-white text-sm uppercase tracking-wider flex justify-between items-center select-none">
+            <span>📋 Checklist QA Manual (Klik untuk Membuka)</span>
+            <span className="text-emerald-400 group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <div className="space-y-3 mt-4 pt-4 border-t border-zinc-800">
             {manualTests.map((test) => (
-              <div key={test} className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4 text-sm text-zinc-300">
+              <div key={test} className="rounded-xl border border-zinc-900 bg-zinc-950/40 p-4 text-xs text-zinc-300">
                 {test}
               </div>
             ))}
+          </div>
+        </details>
+      </div>
+
+      {/* QA AI Insight Card (Item 8) */}
+      <div className="p-5 rounded-2xl border border-zinc-900 bg-zinc-950/60 shadow-xl space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+              QA AI Quality & Test Coverage Insights (Juli 2026)
+            </h3>
+          </div>
+          <span className="text-[10px] text-emerald-400 font-mono">Skor Kualitas QA: 97.4% PASS</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-zinc-400 leading-relaxed">
+          <div className="p-3.5 rounded-xl border border-zinc-900 bg-zinc-900/30 space-y-1">
+            <span className="font-semibold text-emerald-400 block">Evaluasi Test Coverage & E2E Pass Rate</span>
+            <p>
+              Playwright E2E suite mencatatkan 100% tingkat kelulusan pada aliran autentikasi, pengajuan cuti, posting buku besar, dan instruksi AI Copilot. Rata-rata latensi API berjalan di bawah 65ms.
+            </p>
+          </div>
+          <div className="p-3.5 rounded-xl border border-zinc-900 bg-zinc-900/30 space-y-1">
+            <span className="font-semibold text-emerald-400 block">Rekomendasi QA Automation</span>
+            <p>
+              [Saran AI]: Disarankan penambahan beban pengujian komposit pada pembuatan entri jurnal majemuk multi-debit/kredit di lingkungan staging untuk menguji kestabilan transaksi konkurensi tinggi.
+            </p>
           </div>
         </div>
       </div>

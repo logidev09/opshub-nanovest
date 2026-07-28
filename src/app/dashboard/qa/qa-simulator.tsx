@@ -4,66 +4,114 @@ import { useState } from "react";
 
 export function PlaywrightSimulator({ isReadOnly = false }: { isReadOnly?: boolean }) {
   const [isRunning, setIsRunning] = useState(false);
+  const [activeSuite, setActiveSuite] = useState("Playwright E2E");
   const [progress, setProgress] = useState(0);
   const [testResults, setTestResults] = useState<{name: string; status: string; duration: string}[]>([]);
-  const [coverage, setCoverage] = useState(0);
-  const [totalDuration, setTotalDuration] = useState("0.00");
+  const [coverage, setCoverage] = useState(94);
+  const [totalDuration, setTotalDuration] = useState("2.81");
 
-  const tests = [
-    { name: "Login", status: "PENDING", duration: "" },
-    { name: "Register", status: "PENDING", duration: "" },
-    { name: "Chat AI", status: "PENDING", duration: "" },
-    { name: "Leave Request", status: "PENDING", duration: "" },
-    { name: "Finance Approval", status: "PENDING", duration: "" },
-    { name: "Feedback Inbox", status: "PENDING", duration: "" },
-  ];
+  const suites: Record<string, { name: string; duration: string }[]> = {
+    "Playwright E2E": [
+      { name: "Login & Auth Flow", duration: "45ms" },
+      { name: "Register Employee", duration: "62ms" },
+      { name: "AI Chat Assistant", duration: "88ms" },
+      { name: "Leave Submission", duration: "120ms" },
+      { name: "Finance Ledger Posting", duration: "75ms" },
+      { name: "Feedback Inbox Workflow", duration: "55ms" },
+    ],
+    "OWASP Security Audit": [
+      { name: "CSP & CORS Header Verification", duration: "12ms" },
+      { name: "XSS Injection Guardrails", duration: "18ms" },
+      { name: "CSRF & Anti-Forgery Check", duration: "15ms" },
+      { name: "SQL & NoSQL Injection Fuzz", duration: "32ms" },
+    ],
+    "SAST Vulnerability Scan": [
+      { name: "Dependency Vulnerability Scan", duration: "210ms" },
+      { name: "AST Code Analysis", duration: "340ms" },
+      { name: "Secret & Credential Leak Check", duration: "95ms" },
+    ],
+    "API Fuzzing & Latency": [
+      { name: "POST /api/chat Stress Test", duration: "180ms" },
+      { name: "GET /dashboard Latency Benchmark", duration: "42ms" },
+      { name: "Rate Limiter Throttle Test", duration: "65ms" },
+    ],
+    "RBAC Permission Matrix": [
+      { name: "Admin Permission Barrier", duration: "10ms" },
+      { name: "HR Specialist Read-Only Guard", duration: "12ms" },
+      { name: "Accountant Journal Edit Isolation", duration: "14ms" },
+    ],
+    "Performance Benchmark": [
+      { name: "TTFB First Byte Test", duration: "22ms" },
+      { name: "LCP Largest Contentful Paint", duration: "310ms" },
+      { name: "Memory Leak Garbage Collector Check", duration: "450ms" },
+    ],
+  };
+
+  const currentTests = suites[activeSuite] || suites["Playwright E2E"];
 
   const runTests = () => {
     if (isReadOnly) return;
     setIsRunning(true);
     setProgress(0);
     setTestResults([]);
-    setCoverage(0);
-    setTotalDuration("0.00");
 
-    tests.forEach((test, index) => {
+    currentTests.forEach((test, index) => {
       setTimeout(() => {
-        const statuses = ["PASS", "PASS", "PASS", "PASS", "PASS", "PASS"];
-        const durations = ["45ms", "62ms", "88ms", "120ms", "75ms", "55ms"];
         const newResult = {
           name: test.name,
-          status: statuses[index] || "PASS",
-          duration: durations[index] || "100ms"
+          status: "PASS",
+          duration: test.duration,
         };
-        setTestResults(prev => [...prev, newResult]);
-        setProgress(((index + 1) / tests.length) * 100);
-        
-        if (index === tests.length - 1) {
+        setTestResults((prev) => [...prev, newResult]);
+        setProgress(((index + 1) / currentTests.length) * 100);
+
+        if (index === currentTests.length - 1) {
           setTimeout(() => {
             setIsRunning(false);
-            setCoverage(93);
-            setTotalDuration("2.81");
-          }, 500);
+            setCoverage(Math.floor(92 + Math.random() * 7));
+            setTotalDuration((1.5 + Math.random() * 1.5).toFixed(2));
+          }, 300);
         }
-      }, index * 800);
+      }, index * 400);
     });
   };
 
   return (
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 mb-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h3 className="text-lg font-bold text-white">QA Automated Lab</h3>
-          <p className="text-sm text-zinc-400">Playwright Test Suite Simulation</p>
+          <p className="text-sm text-zinc-400">Multi-Suite Automated Test Simulation Engine</p>
         </div>
         <button
           onClick={runTests}
           disabled={isRunning || isReadOnly}
-          className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          {isReadOnly ? "Run Playwright (Disabled)" : isRunning ? "Running..." : "Run Playwright Test Suite"}
+          {isReadOnly ? "Run Test (Disabled)" : isRunning ? "Running Suite..." : `Run ${activeSuite}`}
         </button>
+      </div>
+
+      {/* Test Suite Selector Tabs (Item 10) */}
+      <div className="flex flex-wrap gap-2 mb-6 border-b border-zinc-800 pb-4">
+        {Object.keys(suites).map((suiteName) => (
+          <button
+            key={suiteName}
+            type="button"
+            onClick={() => {
+              setActiveSuite(suiteName);
+              setTestResults([]);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+              activeSuite === suiteName
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                : "bg-zinc-950 text-zinc-400 border border-zinc-850 hover:text-white"
+            }`}
+          >
+            {suiteName}
+          </button>
+        ))}
       </div>
 
       {isRunning && (
@@ -103,7 +151,7 @@ export function PlaywrightSimulator({ isReadOnly = false }: { isReadOnly?: boole
                 </div>
               ))
             ) : (
-              tests.map((test, index) => (
+              currentTests.map((test, index) => (
                 <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-zinc-950/50 border border-zinc-800">
                   <div>
                     <p className="text-sm font-medium text-zinc-400">{test.name}</p>

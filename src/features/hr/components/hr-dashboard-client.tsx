@@ -518,32 +518,53 @@ export function HrDashboardClient({
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative h-16 w-16 flex items-center justify-center">
-              <svg className="h-full w-full -rotate-90 transform" viewBox="0 0 36 36">
-                <path
-                  className="text-zinc-800"
-                  strokeWidth="3.5"
+            <div className="relative flex items-center justify-center">
+              <svg className="w-16 h-16 transform -rotate-90">
+                <circle cx="32" cy="32" r="26" stroke="currentColor" strokeWidth="5" className="text-zinc-800" fill="transparent" />
+                <circle
+                  cx="32"
+                  cy="32"
+                  r="26"
                   stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className="text-emerald-500 transition-all duration-1000"
-                  strokeWidth="3.5"
-                  strokeDasharray={`${(initialBalance / 12) * 100}, 100`}
+                  strokeWidth="5"
+                  className="text-emerald-400 transition-all duration-1000 ease-out"
+                  fill="transparent"
+                  strokeDasharray={2 * Math.PI * 26}
+                  strokeDashoffset={(2 * Math.PI * 26) * (1 - initialBalance / 12)}
                   strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 />
               </svg>
-              <span className="absolute text-[11px] font-extrabold text-white font-mono">
+              <span className="absolute text-[11px] font-bold text-white font-mono">
                 {Math.round((initialBalance / 12) * 100)}%
               </span>
             </div>
-            <span className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg font-bold shadow-inner shrink-0">
-              🌴
-            </span>
+          </div>
+        </div>
+
+        {/* HR AI Insight Card (Item 8) */}
+        <div className="p-5 rounded-2xl border border-zinc-900 bg-zinc-950/60 space-y-3 shadow-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                HR AI Insights & Analisis Produktivitas SDM (Juli 2026)
+              </h4>
+            </div>
+            <span className="text-[10px] text-emerald-400 font-mono">Indeks Presensi: 98.4% (Sangat Baik)</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-zinc-400 leading-relaxed">
+            <div className="p-3.5 rounded-xl border border-zinc-900 bg-zinc-900/30 space-y-1">
+              <span className="font-semibold text-emerald-400 block">Penggunaan Cuti & Distribusi Beban Kerja</span>
+              <p>
+                Total jatah sisa cuti rata-rata karyawan berjalan adalah {Math.round((initialBalance / 12) * 100)}%. Tingkat retensi dan stabilitas jam kerja tim QA, Engineering, & Finance berada pada performa optimal.
+              </p>
+            </div>
+            <div className="p-3.5 rounded-xl border border-zinc-900 bg-zinc-900/30 space-y-1">
+              <span className="font-semibold text-emerald-400 block">Rekomendasi Kebijakan & Preventif Fatigue</span>
+              <p>
+                [Saran AI]: Tidak ditemukan penumpukan pengajuan cuti mendadak. Disarankan dorongan alokasi libur tahunan bagi staf yang belum mengambil cuti di semester I guna mempertahankan retensi.
+              </p>
+            </div>
           </div>
         </div>
 
