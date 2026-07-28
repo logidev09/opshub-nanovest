@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { FeedbackCategory, FeedbackModule, FeedbackStatus } from "@prisma/client";
 import {
   submitSystemFeedbackAction,
@@ -57,6 +58,7 @@ function parseFeedbackMessage(fullMessage: string) {
 
 export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = false }: FeedbackPanelProps) {
   const router = useRouter();
+  const { data: session } = useSession();
   const [category, setCategory] = useState<FeedbackCategory>("UI_UX");
   const [message, setMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -315,19 +317,25 @@ export function FeedbackPanel({ module, userRole, feedbackItems, isReadOnly = fa
                       <span className="text-zinc-400 font-mono truncate max-w-[200px]">
                         📁 {parsed.attachment.name}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveViewerFile({
-                            name: parsed.attachment!.name,
-                            data: parsed.attachment!.data,
-                            feedbackId: item.id,
-                          });
-                        }}
-                        className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 uppercase transition"
-                      >
-                        Lihat Berkas
-                      </button>
+                      {userRole === "ADMIN" || (session?.user?.email && item.submittedBy.email === session.user.email) ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveViewerFile({
+                              name: parsed.attachment!.name,
+                              data: parsed.attachment!.data,
+                              feedbackId: item.id,
+                            });
+                          }}
+                          className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 uppercase transition cursor-pointer"
+                        >
+                          Lihat Berkas
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-zinc-600 font-mono italic">
+                          🔒 Lampiran Rahasia
+                        </span>
+                      )}
                     </div>
                   )}
 

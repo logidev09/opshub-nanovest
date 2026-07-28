@@ -41,10 +41,15 @@ export default async function QaLabPage() {
   const isReadOnly = sessionUser.role !== "ADMIN" && sessionUser.division !== "Quality Assurance";
   const userRole = sessionUser.role || "USER";
 
+  const feedbackWhere: any = { module: "QA" };
+  if (isReadOnly) {
+    feedbackWhere.submittedById = (sessionUser as any).id;
+  }
+
   const feedbackItems = await prisma.systemFeedback.findMany({
-    where: { module: "QA" },
+    where: feedbackWhere,
     orderBy: { createdAt: "desc" },
-    take: 6,
+    take: 10,
     include: {
       submittedBy: {
         select: {

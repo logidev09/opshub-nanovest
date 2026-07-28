@@ -461,6 +461,153 @@ async function main() {
     },
     {
       reference: "JE-2026-0015",
+      description: "Transfer dana operasional ke Bank Mandiri",
+      entryDate: new Date("2026-06-15"),
+      postedById: admin.id,
+      lines: [
+        { code: "1103", side: "DEBIT", amount: 150000000 },
+        { code: "1102", side: "CREDIT", amount: 150000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0016",
+      description: "Pembelian lisensi perangkat lunak dan lisensi server",
+      entryDate: new Date("2026-06-18"),
+      postedById: admin.id,
+      lines: [
+        { code: "1205", side: "DEBIT", amount: 45000000 },
+        { code: "1103", side: "CREDIT", amount: 45000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0017",
+      description: "Pembelian kendaraan operasional kantor secara kredit jangka panjang",
+      entryDate: new Date("2026-06-20"),
+      postedById: admin.id,
+      lines: [
+        { code: "1203", side: "DEBIT", amount: 220000000 },
+        { code: "2202", side: "CREDIT", amount: 220000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0018",
+      description: "Pembelian persediaan merchandise dan alat tulis",
+      entryDate: new Date("2026-06-22"),
+      postedById: admin.id,
+      lines: [
+        { code: "1106", side: "DEBIT", amount: 18500000 },
+        { code: "1101", side: "CREDIT", amount: 18500000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0019",
+      description: "Pembayaran uang muka perjalanan dinas karyawan",
+      entryDate: new Date("2026-06-25"),
+      postedById: hr.id,
+      lines: [
+        { code: "1109", side: "DEBIT", amount: 12000000 },
+        { code: "1103", side: "CREDIT", amount: 12000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0020",
+      description: "Setoran cadangan pajak dibayar dimuka PPN & PPh 23",
+      entryDate: new Date("2026-06-28"),
+      postedById: admin.id,
+      lines: [
+        { code: "1107", side: "DEBIT", amount: 35000000 },
+        { code: "1103", side: "CREDIT", amount: 35000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0021",
+      description: "Pengakuan beban sewa dan amortisasi perangkat lunak",
+      entryDate: new Date("2026-07-01"),
+      postedById: admin.id,
+      lines: [
+        { code: "5102", side: "DEBIT", amount: 10000000 },
+        { code: "1206", side: "CREDIT", amount: 5000000 },
+        { code: "1108", side: "CREDIT", amount: 5000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0022",
+      description: "Penyusutan bulanan peralatan kantor & kendaraan",
+      entryDate: new Date("2026-07-05"),
+      postedById: admin.id,
+      lines: [
+        { code: "5104", side: "DEBIT", amount: 8000000 },
+        { code: "1202", side: "CREDIT", amount: 3000000 },
+        { code: "1204", side: "CREDIT", amount: 5000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0023",
+      description: "Beban perjalanan dinas dan pelatihan karyawan",
+      entryDate: new Date("2026-07-08"),
+      postedById: hr.id,
+      lines: [
+        { code: "5105", side: "DEBIT", amount: 8500000 },
+        { code: "5108", side: "DEBIT", amount: 6500000 },
+        { code: "1109", side: "CREDIT", amount: 12000000 },
+        { code: "1101", side: "CREDIT", amount: 3000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0024",
+      description: "Beban perawatan infrastruktur cloud & IT support",
+      entryDate: new Date("2026-07-10"),
+      postedById: admin.id,
+      lines: [
+        { code: "5106", side: "DEBIT", amount: 14500000 },
+        { code: "2101", side: "CREDIT", amount: 14500000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0025",
+      description: "Pencatatan estimasi kewajiban utang pajak PPN & PPh 21 Juli",
+      entryDate: new Date("2026-07-12"),
+      postedById: admin.id,
+      lines: [
+        { code: "5107", side: "DEBIT", amount: 16500000 },
+        { code: "2103", side: "CREDIT", amount: 16500000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0026",
+      description: "Penerimaan dividen & pendapatan investasi lain-lain",
+      entryDate: new Date("2026-07-14"),
+      postedById: admin.id,
+      lines: [
+        { code: "1103", side: "DEBIT", amount: 28000000 },
+        { code: "4103", side: "CREDIT", amount: 28000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0027",
+      description: "Akrual utang gaji karyawan akhir periode",
+      entryDate: new Date("2026-07-15"),
+      postedById: hr.id,
+      lines: [
+        { code: "5101", side: "DEBIT", amount: 52000000 },
+        { code: "2102", side: "CREDIT", amount: 52000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0028",
+      description: "Cadangan penurunan nilai kerugian piutang dan liabilitas sewa",
+      entryDate: new Date("2026-07-15"),
+      postedById: admin.id,
+      lines: [
+        { code: "3102", side: "CREDIT", amount: 45000000 },
+        { code: "3103", side: "CREDIT", amount: 80000000 },
+        { code: "2201", side: "CREDIT", amount: 120000000 },
+        { code: "1105", side: "CREDIT", amount: 5000000 },
+        { code: "1103", side: "DEBIT", amount: 250000000 },
+      ],
+    },
+    {
+      reference: "JE-2026-0029",
       description: "Pembayaran gaji bulan Juni",
       entryDate: new Date("2026-06-25"),
       postedById: hr.id,
@@ -470,7 +617,7 @@ async function main() {
       ],
     },
     {
-      reference: "JE-2026-0016",
+      reference: "JE-2026-0030",
       description: "Penerimaan pembayaran pelanggan",
       entryDate: new Date("2026-07-05"),
       postedById: admin.id,

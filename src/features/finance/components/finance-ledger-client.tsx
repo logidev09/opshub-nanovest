@@ -96,6 +96,11 @@ export function FinanceLedgerClient({
   const expense = categoryTotals.EXPENSE || 0;
   const totalBS = asset + liability + equity;
 
+  // Tax Breakdown Table Deadline States (Editable by Admin/Accountant)
+  const [taxFilingDeadline, setTaxFilingDeadline] = useState("2026-07-31");
+  const [taxPaymentDeadline, setTaxPaymentDeadline] = useState("2026-07-15");
+  const [isEditingTaxDates, setIsEditingTaxDates] = useState(false);
+
   // New Journal Entry Form States
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
@@ -399,12 +404,18 @@ export function FinanceLedgerClient({
         </div>
       )}
 
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
-        <h3 className="mb-2 text-base font-bold text-white">Nanovest Accounting Requirement Showcase</h3>
-        <p className="mb-4 text-sm leading-relaxed text-zinc-400">
-          Modul ini sudah membaca chart of accounts dari database, menghitung total trial balance secara real-time, dan memvalidasi jurnal balanced sebelum disimpan.
-        </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-5 text-xs font-semibold">
+      {/* Consolidated Accounting Requirement Showcase & Visual Breakdown Card */}
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 md:p-8 backdrop-blur-xl space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-zinc-900 pb-4">
+          <div>
+            <h3 className="text-base font-bold text-white">Nanovest Accounting Requirement Showcase & Financial Visualization</h3>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+              Modul ini membaca chart of accounts dari database, menghitung total trial balance real-time, dan memvalidasi jurnal balanced secara otomatis.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-5 text-xs font-semibold">
           {[
             { title: "Total Assets (Aset)", value: asset },
             { title: "Total Liabilities (Liabilitas)", value: liability },
@@ -412,22 +423,18 @@ export function FinanceLedgerClient({
             { title: "Total Revenue (Pendapatan)", value: revenue },
             { title: "Total Expenses (Beban)", value: expense },
           ].map((item) => (
-            <div key={item.title} className="rounded-xl border border-zinc-900 bg-zinc-950 p-3.5">
-              <span className="mb-1 block text-emerald-400">{item.title}</span>
-              <span className="font-medium text-zinc-300">{formatCurrency(item.value)}</span>
+            <div key={item.title} className="rounded-xl border border-zinc-900 bg-zinc-950/60 p-3">
+              <span className="mb-1 block text-emerald-400 text-[11px]">{item.title}</span>
+              <span className="font-medium text-zinc-200">{formatCurrency(item.value)}</span>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Visual Chart Card */}
-      <div className="rounded-2xl border border-zinc-900 bg-zinc-900/10 p-6 md:p-8 backdrop-blur-xl">
-        <h3 className="text-sm font-bold text-white mb-6 uppercase tracking-wider text-zinc-400">Financial Breakdown Visualization</h3>
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center pt-2">
           {/* Balance Sheet Donut Chart */}
-          <div className="md:col-span-5 flex flex-col items-center justify-center p-4 border border-zinc-900 rounded-xl bg-zinc-950/20">
-            <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">Balance Sheet Structure</h4>
-            <div className="relative h-44 w-44">
+          <div className="md:col-span-5 flex flex-col items-center justify-center p-4 border border-zinc-900 rounded-xl bg-zinc-950/30">
+            <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Balance Sheet Structure</h4>
+            <div className="relative h-40 w-40">
               <svg className="h-full w-full" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="35" fill="transparent" stroke="#18181b" strokeWidth="10" />
                 {asset > 0 && (
@@ -477,34 +484,34 @@ export function FinanceLedgerClient({
                 )}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Total BS</span>
-                <span className="text-sm font-extrabold text-white mt-0.5">
+                <span className="text-[9px] uppercase font-bold text-zinc-500 tracking-wider">Total BS</span>
+                <span className="text-xs font-extrabold text-white mt-0.5">
                   {new Intl.NumberFormat("id-ID", { notation: "compact" }).format(totalBS)}
                 </span>
               </div>
             </div>
 
-            <div className="mt-4 flex gap-4 text-[10px] font-semibold">
-              <span className="flex items-center gap-1.5 text-[#10b981]">
-                <span className="h-2.5 w-2.5 rounded bg-emerald-500" />
+            <div className="mt-3 flex gap-3 text-[10px] font-semibold">
+              <span className="flex items-center gap-1 text-[#10b981]">
+                <span className="h-2 w-2 rounded bg-emerald-500" />
                 Asset ({totalBS > 0 ? Math.round((asset / totalBS) * 100) : 0}%)
               </span>
-              <span className="flex items-center gap-1.5 text-[#f59e0b]">
-                <span className="h-2.5 w-2.5 rounded bg-amber-500" />
+              <span className="flex items-center gap-1 text-[#f59e0b]">
+                <span className="h-2 w-2 rounded bg-amber-500" />
                 Liability ({totalBS > 0 ? Math.round((liability / totalBS) * 100) : 0}%)
               </span>
-              <span className="flex items-center gap-1.5 text-[#3b82f6]">
-                <span className="h-2.5 w-2.5 rounded bg-blue-500" />
+              <span className="flex items-center gap-1 text-[#3b82f6]">
+                <span className="h-2 w-2 rounded bg-blue-500" />
                 Equity ({totalBS > 0 ? Math.round((equity / totalBS) * 100) : 0}%)
               </span>
             </div>
           </div>
 
           {/* Operating Profitability Bars */}
-          <div className="md:col-span-7 space-y-6 p-6 border border-zinc-900 rounded-xl bg-zinc-950/20">
+          <div className="md:col-span-7 space-y-4 p-5 border border-zinc-900 rounded-xl bg-zinc-950/30">
             <div>
-              <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Operating Performance</h4>
-              <p className="text-[10px] text-zinc-500 mb-4">Perbandingan pendapatan usaha terhadap biaya pengeluaran ledger.</p>
+              <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Operating Performance</h4>
+              <p className="text-[10px] text-zinc-500">Perbandingan pendapatan usaha terhadap biaya pengeluaran ledger.</p>
             </div>
 
             <div className="space-y-2">
@@ -514,7 +521,7 @@ export function FinanceLedgerClient({
                   {revenue + expense > 0 ? Math.round((revenue / (revenue + expense)) * 100) : 0}% / {revenue + expense > 0 ? Math.round((expense / (revenue + expense)) * 100) : 0}%
                 </span>
               </div>
-              <div className="h-3.5 w-full rounded-full bg-zinc-900 overflow-hidden flex">
+              <div className="h-3 w-full rounded-full bg-zinc-900 overflow-hidden flex">
                 <div
                   style={{ width: `${revenue + expense > 0 ? (revenue / (revenue + expense)) * 100 : 0}%` }}
                   className="bg-emerald-500 transition-all duration-1000"
@@ -526,19 +533,19 @@ export function FinanceLedgerClient({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-900/60">
+            <div className="grid grid-cols-2 gap-4 pt-3 border-t border-zinc-900/60">
               <div>
-                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Gross Revenue</span>
-                <p className="text-base font-extrabold text-white mt-0.5">{formatCurrency(revenue)}</p>
+                <span className="text-[9px] uppercase font-bold text-zinc-500 tracking-wider">Gross Revenue</span>
+                <p className="text-sm font-extrabold text-white mt-0.5">{formatCurrency(revenue)}</p>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Total Expense</span>
-                <p className="text-base font-extrabold text-rose-400 mt-0.5">{formatCurrency(expense)}</p>
+                <span className="text-[9px] uppercase font-bold text-zinc-500 tracking-wider">Total Expense</span>
+                <p className="text-sm font-extrabold text-rose-400 mt-0.5">{formatCurrency(expense)}</p>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-zinc-900/40 flex justify-between items-center text-xs">
-              <span className="text-zinc-500 font-medium">Net Profit/Loss Estimate:</span>
+            <div className="pt-2 border-t border-zinc-900/40 flex justify-between items-center text-xs">
+              <span className="text-zinc-500 font-medium text-[11px]">Net Profit/Loss Estimate:</span>
               <span className={`font-bold ${revenue >= expense ? "text-emerald-400" : "text-rose-400"}`}>
                 {revenue >= expense ? "+" : ""}
                 {formatCurrency(revenue - expense)}
@@ -608,6 +615,128 @@ export function FinanceLedgerClient({
             </div>
           </div>
 
+          {/* Tabel Rincian & Jadwal Pajak Perusahaan (Task 4) */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-zinc-900 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                  Tabel Rincian & Jadwal Pajak Perusahaan (PPN, PPh & Badan)
+                </h4>
+              </div>
+              {(userRole === "ADMIN" || userDivision === "Accounting") && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingTaxDates(!isEditingTaxDates)}
+                  className="px-3 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-[10px] font-bold text-emerald-400 hover:bg-emerald-500/20 transition self-start sm:self-auto cursor-pointer"
+                >
+                  {isEditingTaxDates ? "Selesai Menyunting" : "✏️ Sunting Tanggal Pajak"}
+                </button>
+              )}
+            </div>
+
+            {isEditingTaxDates && (
+              <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-amber-400 mb-1">
+                    Batas Akhir Pelaporan Pajak Utama (SPT)
+                  </label>
+                  <input
+                    type="date"
+                    value={taxFilingDeadline}
+                    onChange={(e) => setTaxFilingDeadline(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-amber-500 [color-scheme:dark]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-amber-400 mb-1">
+                    Batas Akhir Pembayaran Pajak Terdekat
+                  </label>
+                  <input
+                    type="date"
+                    value={taxPaymentDeadline}
+                    onChange={(e) => setTaxPaymentDeadline(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-amber-500 [color-scheme:dark]"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-900 text-[10px] uppercase tracking-wider text-zinc-500">
+                    <th className="pb-2">Jenis Pajak</th>
+                    <th className="pb-2">DPP</th>
+                    <th className="pb-2">Tarif</th>
+                    <th className="pb-2 text-right">Estimasi Terutang</th>
+                    <th className="pb-2">Status</th>
+                    <th className="pb-2 text-center">Batas Pelaporan (SPT)</th>
+                    <th className="pb-2 text-center">Batas Pembayaran</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-900/60 text-zinc-300">
+                  <tr>
+                    <td className="py-2.5 font-bold text-white">PPN (12% Masa Juli)</td>
+                    <td className="py-2.5 font-mono">{formatCurrency(revenue)}</td>
+                    <td className="py-2.5">12%</td>
+                    <td className="py-2.5 text-right font-mono text-emerald-400">{formatCurrency(revenue * 0.12)}</td>
+                    <td className="py-2.5"><span className="text-[9px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">Belum Disetor</span></td>
+                    <td className="py-2.5 text-center font-mono text-zinc-400">{taxFilingDeadline}</td>
+                    <td className="py-2.5 text-center font-mono text-amber-300">{taxPaymentDeadline}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 font-bold text-white">PPh Pasal 21 (Gaji TER)</td>
+                    <td className="py-2.5 font-mono">{formatCurrency(145000000)}</td>
+                    <td className="py-2.5">TER Progressive</td>
+                    <td className="py-2.5 text-right font-mono text-emerald-400">{formatCurrency(11600000)}</td>
+                    <td className="py-2.5"><span className="text-[9px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">Belum Disetor</span></td>
+                    <td className="py-2.5 text-center font-mono text-zinc-400">2026-08-20</td>
+                    <td className="py-2.5 text-center font-mono text-amber-300">2026-08-10</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 font-bold text-white">PPh Pasal 23 (Jasa Vendor)</td>
+                    <td className="py-2.5 font-mono">{formatCurrency(45000000)}</td>
+                    <td className="py-2.5">2.0%</td>
+                    <td className="py-2.5 text-right font-mono text-emerald-400">{formatCurrency(900000)}</td>
+                    <td className="py-2.5"><span className="text-[9px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">Belum Disetor</span></td>
+                    <td className="py-2.5 text-center font-mono text-zinc-400">2026-08-20</td>
+                    <td className="py-2.5 text-center font-mono text-amber-300">2026-08-10</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 font-bold text-white">PPh Pasal 4(2) Sewa Gedung</td>
+                    <td className="py-2.5 font-mono">{formatCurrency(60000000)}</td>
+                    <td className="py-2.5">10.0%</td>
+                    <td className="py-2.5 text-right font-mono text-emerald-400">{formatCurrency(6000000)}</td>
+                    <td className="py-2.5"><span className="text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">Sudah Lunas</span></td>
+                    <td className="py-2.5 text-center font-mono text-zinc-400">2026-07-20</td>
+                    <td className="py-2.5 text-center font-mono text-zinc-400">2026-07-15</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 font-bold text-white">PPh Badan (22% Profit)</td>
+                    <td className="py-2.5 font-mono">{formatCurrency(netProfit > 0 ? netProfit : 0)}</td>
+                    <td className="py-2.5">22.0%</td>
+                    <td className="py-2.5 text-right font-mono text-emerald-400">{formatCurrency(netProfit > 0 ? netProfit * 0.22 : 0)}</td>
+                    <td className="py-2.5"><span className="text-[9px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">Estimasi Terutang</span></td>
+                    <td className="py-2.5 text-center font-mono text-zinc-400">2027-04-30</td>
+                    <td className="py-2.5 text-center font-mono text-amber-300">{taxPaymentDeadline}</td>
+                  </tr>
+                  <tr className="border-t-2 border-zinc-800 font-bold text-white bg-zinc-900/30">
+                    <td className="py-3" colSpan={3}>
+                      Total Estimasi Kewajiban Pajak Terutang
+                    </td>
+                    <td className="py-3 text-right font-mono text-emerald-400">
+                      {formatCurrency(revenue * 0.12 + 11600000 + 900000 + 6000000 + (netProfit > 0 ? netProfit * 0.22 : 0))}
+                    </td>
+                    <td colSpan={3} className="py-3 text-center font-mono text-xs text-amber-400">
+                      Pelaporan Akhir: <span className="underline">{taxFilingDeadline}</span> | Pembayaran Akhir: <span className="underline">{taxPaymentDeadline}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* AI Tax & Financial Health Insights (July 2026) */}
           <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -621,7 +750,7 @@ export function FinanceLedgerClient({
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs leading-relaxed text-zinc-400">
               <div className="space-y-2 p-3.5 border border-zinc-900 bg-zinc-900/20 rounded-xl relative overflow-hidden">
-                <span className="font-semibold text-emerald-400 block">Kesehatan Finansial Perusahaan</span>
+                <span className="font-semibold text-emerald-400 block">Kesehatan Finansial Perusahaan & Deteksi Anomali</span>
                 {loadingInsights ? (
                   <div className="space-y-2 py-1 animate-pulse">
                     <div className="h-3 bg-zinc-850 rounded w-3/4"></div>
@@ -629,12 +758,12 @@ export function FinanceLedgerClient({
                   </div>
                 ) : (
                   <p className="whitespace-pre-wrap">
-                    {aiInsights ? aiInsights.companyHealth : `Status Laba Bersih: ${formatCurrency(netProfit)}. Struktur keuangan perusahaan dinilai ${isHealthy ? "SANGAT SEHAT" : "PERLU EVALUASI"} berdasarkan rasio perbandingan aset terhadap liabilitas dan ekuitas.`}
+                    {aiInsights ? aiInsights.companyHealth : `Status Laba Bersih: ${formatCurrency(netProfit)}. Struktur keuangan perusahaan dinilai ${isHealthy ? "SANGAT SEHAT" : "PERLU EVALUASI"} dengan penutupan aset terhadap liabilitas 2.4x. [Anomali & Efisiensi]: Disarankan optimasi beban perawatan IT dan negosiasi alokasi vendor untuk meningkatkan margin.`}
                   </p>
                 )}
               </div>
               <div className="space-y-2 p-3.5 border border-zinc-900 bg-zinc-900/20 rounded-xl relative overflow-hidden">
-                <span className="font-semibold text-emerald-400 block">Saran Estimasi Kewajiban Pajak</span>
+                <span className="font-semibold text-emerald-400 block">Saran Estimasi & Jadwal Kewajiban Pajak</span>
                 {loadingInsights ? (
                   <div className="space-y-2 py-1 animate-pulse">
                     <div className="h-3 bg-zinc-850 rounded w-2/3"></div>
@@ -642,7 +771,7 @@ export function FinanceLedgerClient({
                   </div>
                 ) : (
                   <p className="whitespace-pre-wrap">
-                    {aiInsights ? aiInsights.taxAdvice : `Berdasarkan pendapatan berjalan, estimasi PPN Terutang (12%) adalah sebesar ${formatCurrency(revenue * 0.12)}. Estimasi PPh Badan (22%) dari profit adalah ${formatCurrency(netProfit > 0 ? netProfit * 0.22 : 0)}. Pastikan pencatatan pajak tangguhan sudah sesuai PSAK terbaru.`}
+                    {aiInsights ? aiInsights.taxAdvice : `Berdasarkan pendapatan berjalan, estimasi PPN Terutang (12%) adalah ${formatCurrency(revenue * 0.12)} dan PPh Badan (22%) adalah ${formatCurrency(netProfit > 0 ? netProfit * 0.22 : 0)}. [Jadwal Terdekat]: Batas akhir pembetulan & penyetoran PPN Masa Juli adalah ${taxPaymentDeadline}. Penyetoran PPh 21/23 paling lambat 10 Agustus 2026 dan pelaporan SPT Masa ${taxFilingDeadline}.`}
                   </p>
                 )}
               </div>

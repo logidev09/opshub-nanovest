@@ -20,6 +20,8 @@ export async function submitSystemFeedbackAction(input: {
   module: FeedbackModule;
   category: FeedbackCategory;
   message: string;
+  attachmentName?: string;
+  attachmentData?: string;
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -39,11 +41,16 @@ export async function submitSystemFeedbackAction(input: {
       select: { id: true },
     });
 
+    const finalMessage =
+      input.attachmentName && input.attachmentData
+        ? `${message}\n\n---ATTACHMENT_START---\nNAME: ${input.attachmentName}\nDATA: ${input.attachmentData}\n---ATTACHMENT_END---`
+        : message;
+
     const feedback = await prisma.systemFeedback.create({
       data: {
         module: input.module,
         category: input.category,
-        message,
+        message: finalMessage,
         submittedById: sessionUser.id,
         assignedToId: admin?.id,
       },

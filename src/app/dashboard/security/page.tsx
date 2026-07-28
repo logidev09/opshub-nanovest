@@ -41,10 +41,15 @@ export default async function SecurityPage() {
   const isReadOnly = sessionUser.role !== "ADMIN" && sessionUser.division !== "Security Operations & IT Support";
   const userRole = sessionUser.role || "USER";
 
+  const feedbackWhere: any = { module: "SECOPS" };
+  if (isReadOnly) {
+    feedbackWhere.submittedById = (sessionUser as any).id;
+  }
+
   const feedbackItems = await prisma.systemFeedback.findMany({
-    where: { module: "SECOPS" },
+    where: feedbackWhere,
     orderBy: { createdAt: "desc" },
-    take: 6,
+    take: 10,
     include: {
       submittedBy: {
         select: {

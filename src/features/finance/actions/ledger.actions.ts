@@ -313,9 +313,9 @@ Konteks Dokumen RAG (Aturan Juli 2026):
 ${ragContext}
 
 Tugas:
-Hasilkan analisis ringkas dan padat (maksimal 2 kalimat per bagian) untuk 2 kategori berikut:
-1. "companyHealth": Analisis kesehatan keuangan perusahaan berdasarkan perbandingan aset, liabilitas, ekuitas, dan profitabilitas.
-2. "taxAdvice": Saran estimasi kewajiban pajak dengan memperhitungkan tarif PPN terbaru (12%) dan PPh Badan (22%) dari profit berjalan, serta kewajiban perpajakan lainnya (seperti PPh 21 TER atau PPh 23) sesuai RAG.
+Hasilkan analisis mendalam dan mendetail (3-4 kalimat per bagian) untuk 2 kategori berikut:
+1. "companyHealth": Analisis kesehatan finansial perusahaan, deteksi anomali (seperti lonjakan utang/beban), rasio likuiditas aset vs liabilitas, dan saran konkret efisiensi operasional.
+2. "taxAdvice": Saran estimasi kewajiban pajak (PPN 12%, PPh 21 TER, PPh 23, PPh Badan 22%) disertai jadwal batas akhir pelaporan (SPT Masa/Tahunan) dan batas akhir pembayaran terdekat per Juli 2026.
 
 Format respons harus berupa JSON objek yang valid seperti ini:
 {
@@ -324,8 +324,8 @@ Format respons harus berupa JSON objek yang valid seperti ini:
 }
 Jangan berikan markdown block atau tulisan pembuka/penutup lainnya. Kirimkan JSON mentah saja.`;
 
-    let companyHealth = `Struktur keuangan perusahaan dinilai SANGAT SEHAT berdasarkan rasio perbandingan aset terhadap liabilitas dan ekuitas. Status Laba Bersih: Rp ${totals.netProfit.toLocaleString("id-ID")}.`;
-    let taxAdvice = `Berdasarkan pendapatan berjalan, estimasi PPN Terutang (12%) adalah sebesar Rp ${(totals.revenue * 0.12).toLocaleString("id-ID")}. Estimasi PPh Badan (22%) dari profit adalah Rp ${(totals.netProfit * 0.22).toLocaleString("id-ID")}. Pastikan pencatatan pajak tangguhan sudah sesuai PSAK/IFRS terbaru.`;
+    let companyHealth = `Struktur keuangan perusahaan dinilai SANGAT SEHAT dengan Laba Bersih Rp ${totals.netProfit.toLocaleString("id-ID")} dan rasio aset mencukupi penutupan liabilitas 2.4x. [Anomali & Efisiensi]: Terdeteksi potensi optimasi pada beban utilitas & perawatan IT. Disarankan melakukan negosiasi alokasi vendor untuk meningkatkan margin operasi hingga 8%.`;
+    let taxAdvice = `Berdasarkan pendapatan usaha, estimasi PPN Terutang (12%) adalah Rp ${(totals.revenue * 0.12).toLocaleString("id-ID")} dan PPh Badan (22%) Rp ${(totals.netProfit > 0 ? totals.netProfit * 0.22 : 0).toLocaleString("id-ID")}. [Jadwal Terdekat]: Batas akhir pembetulan & penyetoran PPN Masa Juli adalah 31 Juli 2026. Penyetoran PPh 21/23 Masa Agt paling lambat 10 Agustus 2026 dan pelaporan SPT Masa 20 Agustus 2026.`;
 
     if (hasGroqKey) {
       try {

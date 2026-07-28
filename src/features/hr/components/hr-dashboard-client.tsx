@@ -307,6 +307,10 @@ export function HrDashboardClient({
   // Review State
   const [reviewLoading, setReviewLoading] = useState<string | null>(null);
 
+  // Right Sidepanel states (Task 1)
+  const [activeRightTab, setActiveRightTab] = useState<"chat" | "leaves">("chat");
+  const [isMobileSidePanelOpen, setIsMobileSidePanelOpen] = useState(false);
+
   // Submit new leave
   const handleLeaveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -330,7 +334,9 @@ export function HrDashboardClient({
       setReason("");
       setFileName("");
       setFileBase64("");
-      router.refresh(); // Triggers Server Component to fetch new DB lists
+      setIsMobileSidePanelOpen(true);
+      setActiveRightTab("leaves");
+      router.refresh();
     } else {
       setFormMessage({ type: "error", text: res.error || "Gagal mengirim pengajuan cuti." });
     }
@@ -452,126 +458,34 @@ export function HrDashboardClient({
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 items-start w-full">
-      {/* LEFT COLUMN: HR Chatbot */}
-      <div className="w-full lg:w-[58%] flex flex-col h-[75vh] min-w-0 border border-zinc-900 bg-zinc-900/10 rounded-2xl overflow-hidden backdrop-blur-xl">
-        {/* Chat Header */}
-        <div className="px-6 py-4 border-b border-zinc-900 bg-zinc-950/40 flex items-center gap-3">
-          <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          <div>
-            <h2 className="text-sm font-bold text-white tracking-wide">Nanovest HR Copilot</h2>
-            <p className="text-[10px] text-zinc-500 font-medium">Ditenagai konteks kebijakan vektor dan guardrail berlapis</p>
-          </div>
+    <div className="flex flex-col lg:flex-row gap-8 items-start w-full relative">
+      {/* Mobile Toggle Side Panel Banner */}
+      <div className="w-full flex items-center justify-between lg:hidden p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 shadow-lg">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-xs font-bold text-white uppercase tracking-wider">
+            HR Side Panel: {activeRightTab === "chat" ? "AI Copilot Chat" : "Riwayat Cuti"}
+          </span>
         </div>
-
-        {/* Chat History Container */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center px-4">
-              <div className="h-12 w-12 rounded-2xl bg-zinc-900 border border-zinc-850 flex items-center justify-center text-emerald-400 mb-4 shadow-xl">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-              </div>
-              <h3 className="text-sm font-semibold text-white">Tanya HR Copilot</h3>
-              <p className="text-xs text-zinc-500 mt-1 max-w-sm">
-                Tanyakan soal jatah cuti, jam kerja, slip gaji, atau kebijakan HR lainnya. Guardrail kami melindungi percakapan dari prompt injection secara otomatis.
-              </p>
-            </div>
-          ) : (
-            messages.map((m) => (
-              <div
-                key={m.id}
-                className={`flex gap-3 text-sm max-w-[88%] ${
-                  m.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
-                }`}
-              >
-                <ChatAvatar role={m.role} image={m.role === "user" ? userImage : null} />
-                <div className={`space-y-1 ${m.role === "user" ? "items-end text-right" : ""}`}>
-                  <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${m.role === "user" ? "text-emerald-300" : "text-zinc-500"}`}>
-                    {m.role === "user" ? `${userName} (${userRoleFormatted})` : "HR Copilot"}
-                  </p>
-                  <div
-                    className={`rounded-2xl px-4 py-3 leading-relaxed whitespace-pre-wrap ${
-                      m.role === "user"
-                        ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
-                        : "bg-zinc-900/80 text-zinc-200 border border-zinc-850"
-                    }`}
-                  >
-                    {renderMessageText(m)}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-
-          {/* Guardrail Errors alert */}
-          {chatAlert && (
-            <div className="flex gap-3 max-w-[90%] mr-auto items-start">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-500/30 bg-red-950 text-red-500 font-bold text-xs">
-                🛡️
-              </div>
-              <div className="rounded-2xl px-4 py-3 bg-red-950/30 text-red-400 border border-red-900/50 leading-relaxed text-xs">
-                <span className="font-bold block mb-1">{chatAlert.title}</span>
-                {chatAlert.message}
-              </div>
-            </div>
-          )}
-
-          {/* Loading indicators */}
-          {isChatLoading && !chatAlert && (
-            <div className="flex gap-3 mr-auto items-center">
-              <ChatAvatar role="assistant" />
-              <div className="flex gap-2 items-center">
-                <div className="flex gap-1.5 p-3 rounded-2xl bg-zinc-900/40 border border-zinc-900">
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.2s]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.4s]" />
-                </div>
-                <span className="text-[10px] text-zinc-500 font-mono animate-pulse">
-                  HR Copilot sedang menyiapkan jawaban...
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Input box */}
-        <form onSubmit={handleSubmit} className="p-4 border-t border-zinc-900 bg-zinc-950/30">
-          <div className="flex gap-2">
-            <input
-              value={input}
-              onChange={handleInputChange}
-              placeholder={
-                userRole === "HR" || userRole === "ADMIN"
-                  ? "Tanyakan kebijakan atau ketik perintah (mis. 'Setujui semua cuti')"
-                  : "Tanyakan kebijakan atau ajukan cuti... (mis. 'Saya ingin cuti besok karena kontrol gigi')"
-              }
-              className="flex-1 rounded-xl border border-zinc-850 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-emerald-500/80 transition"
-            />
-            <button
-              type="submit"
-              disabled={isChatLoading || !input.trim()}
-              className="px-4 rounded-xl bg-emerald-500 text-black hover:opacity-95 disabled:opacity-50 transition active:scale-[0.98]"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9-2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-            </button>
-          </div>
-        </form>
+        <button
+          type="button"
+          onClick={() => setIsMobileSidePanelOpen(!isMobileSidePanelOpen)}
+          className="px-3.5 py-2 rounded-xl bg-emerald-500 text-black text-xs font-bold transition hover:bg-emerald-400 active:scale-95 shadow-md"
+        >
+          {isMobileSidePanelOpen ? "Tutup Panel ✕" : "Buka Side Panel 💬"}
+        </button>
       </div>
 
-      {/* RIGHT COLUMN: Leave Request Form & Leaves list */}
-      <div className="w-full lg:w-[42%] space-y-6 min-w-0">
+      {/* LEFT COLUMN: Main Form & Dashboard Controls */}
+      <div className="w-full lg:flex-1 space-y-6 min-w-0">
         {/* Admin User Creation */}
         {userRole === "ADMIN" && (
-          <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20">
+          <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20 backdrop-blur-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-base font-bold text-white">Kelola Akun Admin</h3>
                 <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
-                  Admin sekarang punya halaman khusus untuk membuat akun baru, mengubah role, reset kata sandi, dan mengaktifkan atau menonaktifkan akun.
+                  Admin dapat membuat akun baru, mengubah role, reset kata sandi, dan menyetujui akun baru.
                 </p>
               </div>
               <Link
@@ -587,18 +501,18 @@ export function HrDashboardClient({
         {/* Leave Balance Header Card */}
         <div className="p-6 rounded-2xl border border-zinc-900 bg-gradient-to-br from-zinc-900/60 to-zinc-950/60 shadow-xl flex items-center justify-between">
           <div>
-            <h3 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Sisa Cuti</h3>
+            <h3 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Jatah Sisa Cuti</h3>
             <p className="text-3xl font-extrabold text-white mt-1">
               {initialBalance} <span className="text-zinc-500 text-sm font-medium">/ 12 Hari</span>
             </p>
           </div>
-          <span className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg font-bold">
+          <span className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg font-bold shadow-inner">
             🌴
           </span>
         </div>
 
         {/* Leave Request Form */}
-        <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20">
+        <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20 backdrop-blur-xl">
           <h3 className="text-base font-bold text-white mb-4">Ajukan Cuti</h3>
 
           {formMessage && (
@@ -727,21 +641,21 @@ export function HrDashboardClient({
             </button>
             {userRole === "HR" || userRole === "ADMIN" ? (
               <p className="text-[11px] leading-relaxed text-zinc-500">
-                Sebagai HR/Admin, Anda dapat memantau, menyetujui, dan menolak cuti karyawan langsung dari panel di bawah ini atau melalui perintah chatbot (misal: <span className="text-zinc-300">&quot;setujui semua pengajuan cuti&quot;</span>).
+                Sebagai HR/Admin, Anda dapat memantau, menyetujui, dan menolak cuti karyawan dari panel persetujuan atau via chatbot.
               </p>
             ) : (
               <p className="text-[11px] leading-relaxed text-zinc-500">
-                Anda juga bisa mengetik di chat seperti <span className="text-zinc-300">&quot;Saya ingin cuti besok karena kontrol gigi&quot;</span> dan sistem akan otomatis membuat pengajuan jika tanggalnya terbaca.
+                Anda juga bisa mengetik di AI Chat side panel seperti <span className="text-zinc-300">&quot;Saya ingin cuti besok karena kontrol gigi&quot;</span>.
               </p>
             )}
           </form>
         </div>
 
-        {/* HR/Admin Approval Panel (Conditionally Shown) */}
+        {/* HR/Admin Approval Panel */}
         {(userRole === "ADMIN" || userRole === "HR") && initialPendingLeaves.length > 0 && (
-          <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20">
+          <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/20 backdrop-blur-xl">
             <h3 className="text-base font-bold text-white mb-4">Persetujuan Cuti Tertunda</h3>
-            <div className="space-y-3 max-h-[220px] overflow-y-auto">
+            <div className="space-y-3 max-h-[260px] overflow-y-auto">
               {initialPendingLeaves.map((request) => (
                 <div key={request.id} className="p-3 rounded-xl border border-zinc-900 bg-zinc-950/60 text-xs">
                   <div className="flex items-center justify-between mb-2">
@@ -811,43 +725,191 @@ export function HrDashboardClient({
             </div>
           </div>
         )}
+      </div>
 
-        {/* My Leaves List / All Leaves List */}
-        <div className="p-6 rounded-2xl border border-zinc-900 bg-zinc-900/10">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <h3 className="text-base font-bold text-white">
-              {userRole === "HR" || userRole === "ADMIN" ? "Riwayat Cuti Seluruh Karyawan" : "Riwayat Cuti Saya"}
-            </h3>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleExportCuti}
-                className="px-2.5 py-1.5 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-[10px] font-bold text-zinc-300 hover:text-white transition"
-              >
-                📥 Export Cuti (CSV)
-              </button>
+      {/* RIGHT COLUMN: Tabbed Side Panel (AI Chat & Riwayat Cuti) */}
+      <div
+        className={`w-full lg:w-[480px] shrink-0 border border-zinc-900 bg-zinc-900/20 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[78vh] transition-all duration-300 ${
+          isMobileSidePanelOpen ? "block" : "hidden lg:flex"
+        }`}
+      >
+        {/* Horizontal Tabs Header */}
+        <div className="border-b border-zinc-900 bg-zinc-950/60 p-2 flex items-center justify-between shrink-0">
+          <div className="flex gap-1.5 w-full">
+            <button
+              type="button"
+              onClick={() => setActiveRightTab("chat")}
+              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                activeRightTab === "chat"
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm"
+                  : "text-zinc-400 hover:text-white hover:bg-zinc-900"
+              }`}
+            >
+              💬 AI Chat & RAG
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveRightTab("leaves")}
+              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                activeRightTab === "leaves"
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm"
+                  : "text-zinc-400 hover:text-white hover:bg-zinc-900"
+              }`}
+            >
+              🌴 Riwayat Cuti ({initialMyLeaves.length})
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsMobileSidePanelOpen(false)}
+            className="lg:hidden ml-2 p-1.5 text-zinc-400 hover:text-white"
+            title="Tutup Panel"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* TAB 1: Chat AI & RAG */}
+        {activeRightTab === "chat" && (
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Top Bar for RAG Button */}
+            <div className="px-4 py-3 border-b border-zinc-900 bg-zinc-950/40 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs font-bold text-white">Nanovest HR Copilot</span>
+              </div>
               {(userRole === "HR" || userRole === "ADMIN") && (
-                <button
-                  type="button"
-                  onClick={handleExportKaryawan}
-                  className="px-2.5 py-1.5 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-[10px] font-bold text-zinc-300 hover:text-white transition"
+                <Link
+                  href="/dashboard/hr/policies"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-bold text-black hover:bg-emerald-400 transition"
                 >
-                  📥 Export Karyawan (CSV)
-                </button>
+                  📁 Kelola Dokumen RAG
+                </Link>
               )}
             </div>
-          </div>
-          <div className="space-y-3 max-h-[250px] overflow-y-auto">
-            {initialMyLeaves.length > 0 ? (
-              initialMyLeaves.map((leave) => {
-                let badgeClass = "text-zinc-400 bg-zinc-900 border-zinc-800";
-                if (leave.status === LeaveStatus.APPROVED) badgeClass = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
-                if (leave.status === LeaveStatus.REJECTED) badgeClass = "text-red-400 bg-red-500/10 border-red-500/20";
 
-                return (
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+              {messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center px-4">
+                  <div className="h-10 w-10 rounded-2xl bg-zinc-900 border border-zinc-850 flex items-center justify-center text-emerald-400 mb-3 shadow-xl">
+                    💬
+                  </div>
+                  <h3 className="text-xs font-semibold text-white">Tanya HR Copilot</h3>
+                  <p className="text-[11px] text-zinc-500 mt-1 max-w-xs leading-relaxed">
+                    Tanyakan kebijakan jatah cuti, aturan HR, atau ketik langsung pengajuan cuti Anda.
+                  </p>
+                </div>
+              ) : (
+                messages.map((m) => (
+                  <div
+                    key={m.id}
+                    className={`flex gap-2.5 text-xs max-w-[90%] ${
+                      m.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
+                    }`}
+                  >
+                    <ChatAvatar role={m.role} image={m.role === "user" ? userImage : null} />
+                    <div className={`space-y-1 ${m.role === "user" ? "items-end text-right" : ""}`}>
+                      <p className={`text-[9px] font-semibold uppercase tracking-wider ${m.role === "user" ? "text-emerald-300" : "text-zinc-500"}`}>
+                        {m.role === "user" ? `${userName}` : "HR Copilot"}
+                      </p>
+                      <div
+                        className={`rounded-2xl px-3.5 py-2.5 leading-relaxed whitespace-pre-wrap ${
+                          m.role === "user"
+                            ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                            : "bg-zinc-900/80 text-zinc-200 border border-zinc-850"
+                        }`}
+                      >
+                        {renderMessageText(m)}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {chatAlert && (
+                <div className="flex gap-2.5 max-w-[92%] mr-auto items-start">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-red-500/30 bg-red-950 text-red-500 font-bold text-xs">
+                    🛡️
+                  </div>
+                  <div className="rounded-2xl px-3.5 py-2.5 bg-red-950/30 text-red-400 border border-red-900/50 leading-relaxed text-xs">
+                    <span className="font-bold block mb-1">{chatAlert.title}</span>
+                    {chatAlert.message}
+                  </div>
+                </div>
+              )}
+
+              {isChatLoading && !chatAlert && (
+                <div className="flex gap-2 mr-auto items-center">
+                  <ChatAvatar role="assistant" />
+                  <div className="flex gap-1.5 p-2.5 rounded-2xl bg-zinc-900/40 border border-zinc-900">
+                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.2s]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0.4s]" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Chat Input Box */}
+            <form onSubmit={handleSubmit} className="p-3 border-t border-zinc-900 bg-zinc-950/40 shrink-0">
+              <div className="flex gap-2">
+                <input
+                  value={input}
+                  onChange={handleInputChange}
+                  placeholder="Ketik pertanyaan atau ajukan cuti..."
+                  className="flex-1 rounded-xl border border-zinc-850 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-emerald-500 transition"
+                />
+                <button
+                  type="submit"
+                  disabled={isChatLoading || !input.trim()}
+                  className="px-3.5 rounded-xl bg-emerald-500 text-black hover:opacity-95 disabled:opacity-50 transition active:scale-[0.98] text-xs font-bold"
+                >
+                  Kirim
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* TAB 2: Riwayat Cuti */}
+        {activeRightTab === "leaves" && (
+          <div className="flex-1 flex flex-col p-4 overflow-hidden min-h-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 shrink-0">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                {userRole === "HR" || userRole === "ADMIN" ? "Riwayat Cuti Seluruh Karyawan" : "Riwayat Cuti Saya"}
+              </h3>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleExportCuti}
+                  className="px-2 py-1 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-[9px] font-bold text-zinc-300 hover:text-white transition"
+                >
+                  📥 Cuti (CSV)
+                </button>
+                {(userRole === "HR" || userRole === "ADMIN") && (
+                  <button
+                    type="button"
+                    onClick={handleExportKaryawan}
+                    className="px-2 py-1 rounded-lg border border-zinc-800 hover:border-emerald-500/50 bg-zinc-950 text-[9px] font-bold text-zinc-300 hover:text-white transition"
+                  >
+                    📥 Karyawan (CSV)
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {initialMyLeaves.length > 0 ? (
+                initialMyLeaves.map((leave) => {
+                  let badgeClass = "text-zinc-400 bg-zinc-900 border-zinc-800";
+                  if (leave.status === LeaveStatus.APPROVED) badgeClass = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+                  if (leave.status === LeaveStatus.REJECTED) badgeClass = "text-red-400 bg-red-500/10 border-red-500/20";
+
+                  return (
                     <div
                       key={leave.id}
-                      className="flex flex-col p-3 rounded-xl border border-zinc-900 bg-zinc-950/40 text-xs"
+                      className="flex flex-col p-3 rounded-xl border border-zinc-900 bg-zinc-950/60 text-xs"
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -866,8 +928,8 @@ export function HrDashboardClient({
                             const hasAttach = meta && meta.attachmentName && meta.attachmentData;
                             if (!hasAttach) return null;
                             return (
-                              <div className="mt-2.5 p-1.5 rounded border border-zinc-900 bg-zinc-950/40 flex items-center justify-between gap-3">
-                                <span className="font-mono text-[9px] text-zinc-500 truncate max-w-[150px]">
+                              <div className="mt-2 p-1.5 rounded border border-zinc-900 bg-zinc-950/40 flex items-center justify-between gap-3">
+                                <span className="font-mono text-[9px] text-zinc-500 truncate max-w-[130px]">
                                   📁 {meta.attachmentName}
                                 </span>
                                 <button
@@ -888,8 +950,8 @@ export function HrDashboardClient({
                             );
                           })()}
                         </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <span className={`px-2.5 py-0.5 rounded-full font-semibold border text-[10px] ${badgeClass}`}>
+                        <div className="flex flex-col items-end gap-1.5">
+                          <span className={`px-2 py-0.5 rounded-full font-semibold border text-[9px] ${badgeClass}`}>
                             {leave.status}
                           </span>
                           {userRole === "ADMIN" && (
@@ -907,7 +969,7 @@ export function HrDashboardClient({
                                 <button
                                   onClick={() => handleLeaveReview(leave.id, LeaveStatus.REJECTED)}
                                   disabled={reviewLoading === leave.id}
-                                  className="text-[9px] font-bold text-red-400 hover:text-red-300 uppercase disabled:opacity-50 ml-2"
+                                  className="text-[9px] font-bold text-red-400 hover:text-red-300 uppercase disabled:opacity-50 ml-1"
                                 >
                                   Tolak
                                 </button>
@@ -926,15 +988,16 @@ export function HrDashboardClient({
                         </div>
                       </div>
                     </div>
-                );
-              })
-            ) : (
-              <div className="text-center py-6 text-zinc-500 text-xs">
-                Belum ada riwayat pengajuan cuti.
-              </div>
-            )}
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-zinc-500 text-xs">
+                  Belum ada riwayat pengajuan cuti.
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Profile Detail Modal (Task 4) */}

@@ -124,31 +124,11 @@ export default async function HrDashboardPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 border-b border-zinc-900 pb-6">
-        <div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">HR AI Copilot</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Tanyakan kebijakan ke HR Copilot atau kelola pengajuan cuti Anda.
-          </p>
-        </div>
-        {(userRole === "HR" || userRole === "ADMIN") && (
-          <div>
-            <Link
-              href="/dashboard/hr/policies"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-emerald-400 active:scale-95 w-max"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v2m0 2v8m-4-4h8"
-                />
-              </svg>
-              Kelola Dokumen RAG
-            </Link>
-          </div>
-        )}
+      <div className="flex flex-col gap-2 border-b border-zinc-900 pb-4">
+        <h1 className="text-3xl font-extrabold text-white tracking-tight">HR AI Copilot</h1>
+        <p className="text-sm text-zinc-400">
+          Tanyakan kebijakan ke HR Copilot di panel kanan atau ajukan cuti Anda.
+        </p>
       </div>
 
       <HrDashboardClient
